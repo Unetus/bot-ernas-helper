@@ -1,0 +1,7 @@
+node_modules/
+.env
+*.key
+unetus
+data/*.json
+!data/.gitkeep
+npm-debug.log*

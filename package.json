@@ -1,0 +1,22 @@
+{
+  "name": "bot-ernas-helper",
+  "version": "1.0.0",
+  "description": "Bot administrativo para Discord com tickets e logs.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "check": "node --check index.js && node scripts/check-commands.js"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "tickets",
+    "logs"
+  ],
+  "author": "Unetus",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^14.26.4",
+    "dotenv": "^17.4.2"
+  }
+}
