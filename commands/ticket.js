@@ -158,9 +158,10 @@ module.exports = {
     if (!interaction.customId.startsWith('ticket:')) return false;
 
     // ----- Criar modal -----
-    if (interaction.customId === 'ticket:create') {
+    if (interaction.customId === 'ticket:select' && interaction.isStringSelectMenu()) {
+      const selectedOption = interaction.values[0];
       const modal = new ModalBuilder()
-        .setCustomId('ticket:create-modal')
+        .setCustomId(`ticket:create-modal_${selectedOption}`)
         .setTitle('Abrir ticket')
         .addComponents(
           new ActionRowBuilder().addComponents(
@@ -178,7 +179,8 @@ module.exports = {
     }
 
     // ----- Criar ticket -----
-    if (interaction.customId === 'ticket:create-modal') {
+    if (interaction.customId.startsWith('ticket:create-modal')) {
+      const selectedOption = interaction.customId.split('_')[1] || 'geral';
       const config = getGuildConfig(interaction.guild.id);
       if (!config.ticketCategoryId || !config.supportRoleId) {
         await interaction.reply({
@@ -246,6 +248,7 @@ module.exports = {
         fields: [
           { name: 'Autor', value: `${interaction.user}`, inline: true },
           { name: 'Status', value: `${Symbols.OPEN} Aberto`, inline: true },
+          { name: 'Categoria', value: selectedOption.charAt(0).toUpperCase() + selectedOption.slice(1), inline: true },
           { name: 'Motivo', value: reason }
         ],
         footer: `Ernas Helper ${Symbols.DOT} Ticket ${Symbols.TICKET}${paddedNumber}`

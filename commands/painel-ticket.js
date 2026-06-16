@@ -2,8 +2,8 @@ const {
   SlashCommandBuilder,
   PermissionFlagsBits,
   ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder
 } = require('discord.js');
 const { Colors, Symbols, buildEmbed } = require('../utils/branding');
 
@@ -44,10 +44,23 @@ module.exports = {
     });
 
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('ticket:create')
-        .setLabel('Abrir ticket')
-        .setStyle(ButtonStyle.Primary)
+      new StringSelectMenuBuilder()
+        .setCustomId('ticket:select')
+        .setPlaceholder('Selecione uma opção de atendimento...')
+        .addOptions(
+          new StringSelectMenuOptionBuilder()
+            .setLabel('Dúvidas (Placeholder)')
+            .setDescription('Selecione para tirar dúvidas em geral.')
+            .setValue('duvidas'),
+          new StringSelectMenuOptionBuilder()
+            .setLabel('Suporte (Placeholder)')
+            .setDescription('Selecione para reportar problemas ou bugs.')
+            .setValue('suporte'),
+          new StringSelectMenuOptionBuilder()
+            .setLabel('Outros (Placeholder)')
+            .setDescription('Selecione para outros assuntos.')
+            .setValue('outros')
+        )
     );
 
     await interaction.channel.send({ embeds: [embed], components: [row] });
