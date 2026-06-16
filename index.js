@@ -10,15 +10,16 @@ const {
   REST,
   Routes,
   Events,
-  EmbedBuilder
+  ActivityType
 } = require('discord.js');
 
 const { appendLog } = require('./utils/logging');
+const { Colors, Symbols, buildEmbed } = require('./utils/branding');
 
 const token = process.env.DISCORD_TOKEN;
 
 if (!token) {
-  console.error('DISCORD_TOKEN nao configurado. Crie um arquivo .env ou configure a variavel de ambiente.');
+  console.error('[ERRO] DISCORD_TOKEN nao configurado. Crie um arquivo .env ou configure a variavel de ambiente.');
   process.exit(1);
 }
 
@@ -33,6 +34,9 @@ const client = new Client({
   partials: [Partials.Channel, Partials.Message, Partials.GuildMember, Partials.User]
 });
 
+// ---------------------------------------------------------------------------
+// Carregamento de comandos
+// ---------------------------------------------------------------------------
 client.commands = new Collection();
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith('.js'));
@@ -41,30 +45,40 @@ for (const file of commandFiles) {
   const command = require(path.join(commandsPath, file));
   if (command.data && command.execute) {
     client.commands.set(command.data.name, command);
+    console.log(`[COMMANDS] ${Symbols.CHECK} ${command.data.name}`);
   } else {
-    console.warn(`[WARNING] ${file} nao exporta data/execute.`);
+    console.warn(`[COMMANDS] ${Symbols.CROSS} ${file} nao exporta data/execute.`);
   }
 }
 
+// ---------------------------------------------------------------------------
+// Publicação de comandos e atividade
+// ---------------------------------------------------------------------------
 const commandPayload = client.commands.map((command) => command.data.toJSON());
 const rest = new REST({ version: '10' }).setToken(token);
 
 client.once(Events.ClientReady, async () => {
-  console.log(`Bot logado como ${client.user.tag}`);
+  console.log(`[BOT] Logado como ${client.user.tag}`);
+
+  client.user.setActivity('tickets', { type: ActivityType.Watching });
 
   try {
     await rest.put(Routes.applicationCommands(client.user.id), { body: commandPayload });
-    console.log(`${commandPayload.length} comandos slash publicados.`);
+    console.log(`[BOT] ${commandPayload.length} comandos slash publicados.`);
   } catch (error) {
-    console.error('Erro ao publicar comandos slash:', error);
+    console.error('[BOT] Erro ao publicar comandos slash:', error);
   }
 });
 
+// ---------------------------------------------------------------------------
+// Interações
+// ---------------------------------------------------------------------------
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
     if (interaction.isChatInputCommand()) {
       const command = client.commands.get(interaction.commandName);
       if (!command) return;
+      console.log(`[CMD] ${interaction.user.tag} usou /${interaction.commandName}`);
       await command.execute(interaction);
       return;
     }
@@ -77,8 +91,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
     }
   } catch (error) {
-    console.error('Erro ao processar interacao:', error);
-    const payload = { content: 'Houve um erro ao executar essa acao.', ephemeral: true };
+    console.error('[ERRO] Erro ao processar interacao:', error);
+    const payload = {
+      embeds: [buildEmbed({
+        description: 'Houve um erro ao executar essa ação.',
+        color: Colors.DANGER
+      })],
+      ephemeral: true
+    };
     if (interaction.replied || interaction.deferred) {
       await interaction.followUp(payload).catch(() => null);
     } else {
@@ -87,32 +107,46 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Logs de membros
+// ---------------------------------------------------------------------------
 client.on(Events.GuildMemberAdd, async (member) => {
   await appendLog(member.guild, {
     title: 'Membro entrou',
-    description: `${member.user.tag} (${member.id})`,
-    color: 0x2ecc71
+    color: Colors.SUCCESS,
+    fields: [
+      { name: 'Usuário', value: `${member.user.tag}`, inline: true },
+      { name: 'ID', value: member.id, inline: true },
+      { name: 'Conta criada em', value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`, inline: true }
+    ]
   });
 });
 
 client.on(Events.GuildMemberRemove, async (member) => {
   await appendLog(member.guild, {
     title: 'Membro saiu',
-    description: `${member.user.tag} (${member.id})`,
-    color: 0xe67e22
+    color: Colors.WARNING,
+    fields: [
+      { name: 'Usuário', value: `${member.user.tag}`, inline: true },
+      { name: 'ID', value: member.id, inline: true }
+    ]
   });
 });
 
+// ---------------------------------------------------------------------------
+// Logs de mensagens
+// ---------------------------------------------------------------------------
 client.on(Events.MessageDelete, async (message) => {
   if (!message.guild || message.author?.bot) return;
+
   await appendLog(message.guild, {
     title: 'Mensagem apagada',
-    description: [
-      `Canal: ${message.channel}`,
-      `Autor: ${message.author?.tag || 'desconhecido'} (${message.author?.id || 'sem id'})`,
-      message.content ? `Conteudo: ${message.content.slice(0, 900)}` : 'Conteudo indisponivel'
-    ].join('\n'),
-    color: 0xe74c3c
+    color: Colors.DANGER,
+    fields: [
+      { name: 'Canal', value: `${message.channel}`, inline: true },
+      { name: 'Autor', value: `${message.author?.tag || 'desconhecido'} (${message.author?.id || 'N/A'})`, inline: true },
+      { name: 'Conteúdo', value: message.content ? message.content.slice(0, 1024) : 'Indisponível' }
+    ]
   });
 });
 
@@ -120,16 +154,16 @@ client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
   if (!newMessage.guild || newMessage.author?.bot) return;
   if (oldMessage.content === newMessage.content) return;
 
-  const embed = new EmbedBuilder()
-    .setTitle('Mensagem editada')
-    .setColor(0xf1c40f)
-    .setDescription(`Canal: ${newMessage.channel}\nAutor: ${newMessage.author.tag} (${newMessage.author.id})`)
-    .addFields(
-      { name: 'Antes', value: (oldMessage.content || 'Indisponivel').slice(0, 1024) },
-      { name: 'Depois', value: (newMessage.content || 'Indisponivel').slice(0, 1024) }
-    );
-
-  await appendLog(newMessage.guild, { embed });
+  await appendLog(newMessage.guild, {
+    title: 'Mensagem editada',
+    color: Colors.WARNING,
+    fields: [
+      { name: 'Canal', value: `${newMessage.channel}`, inline: true },
+      { name: 'Autor', value: `${newMessage.author.tag} (${newMessage.author.id})`, inline: true },
+      { name: 'Antes', value: (oldMessage.content || 'Indisponível').slice(0, 1024) },
+      { name: 'Depois', value: (newMessage.content || 'Indisponível').slice(0, 1024) }
+    ]
+  });
 });
 
 client.login(token);

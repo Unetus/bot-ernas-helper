@@ -4,6 +4,15 @@ const path = require('path');
 const dataDir = path.join(__dirname, '..', 'data');
 const dbPath = path.join(dataDir, 'config.json');
 
+const defaultGuildConfig = {
+  logChannelId: null,
+  ticketCategoryId: null,
+  supportRoleId: null,
+  transcriptChannelId: null,
+  ticketCounter: 0,
+  tickets: {}
+};
+
 const defaultState = {
   guilds: {}
 };
@@ -25,20 +34,18 @@ function writeState(state) {
 
 function getGuildConfig(guildId) {
   const state = readState();
-  state.guilds[guildId] ||= {
-    logChannelId: null,
-    ticketCategoryId: null,
-    supportRoleId: null,
-    transcriptChannelId: null,
-    tickets: {}
-  };
-  writeState(state);
+  if (!state.guilds[guildId]) {
+    state.guilds[guildId] = { ...defaultGuildConfig };
+    writeState(state);
+  }
   return state.guilds[guildId];
 }
 
 function updateGuildConfig(guildId, updater) {
   const state = readState();
-  state.guilds[guildId] ||= getGuildConfig(guildId);
+  if (!state.guilds[guildId]) {
+    state.guilds[guildId] = { ...defaultGuildConfig };
+  }
   updater(state.guilds[guildId]);
   writeState(state);
   return state.guilds[guildId];

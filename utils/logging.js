@@ -1,5 +1,5 @@
-const { EmbedBuilder } = require('discord.js');
 const { getGuildConfig } = require('./storage');
+const { buildEmbed } = require('./branding');
 
 async function appendLog(guild, options) {
   const config = getGuildConfig(guild.id);
@@ -8,11 +8,13 @@ async function appendLog(guild, options) {
   const channel = await guild.channels.fetch(config.logChannelId).catch(() => null);
   if (!channel || !channel.isTextBased()) return;
 
-  const embed = options.embed || new EmbedBuilder()
-    .setTitle(options.title)
-    .setDescription(options.description)
-    .setColor(options.color || 0x3498db)
-    .setTimestamp();
+  const embed = options.embed || buildEmbed({
+    title: options.title,
+    description: options.description,
+    color: options.color,
+    fields: options.fields,
+    footer: options.footer || 'Ernas Helper · Logs'
+  });
 
   await channel.send({ embeds: [embed] }).catch(() => null);
 }

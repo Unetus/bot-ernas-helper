@@ -3,9 +3,9 @@ const {
   PermissionFlagsBits,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle,
-  EmbedBuilder
+  ButtonStyle
 } = require('discord.js');
+const { Colors, Symbols, buildEmbed } = require('../utils/branding');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -24,13 +24,24 @@ module.exports = {
         .setRequired(false)),
 
   async execute(interaction) {
-    const title = interaction.options.getString('titulo') || 'Atendimento';
-    const description = interaction.options.getString('descricao') || 'Abra um ticket para falar com a equipe.';
+    const title = interaction.options.getString('titulo') || 'Central de Atendimento';
+    const description = interaction.options.getString('descricao') ||
+      [
+        'Precisa de ajuda ou quer falar com a equipe?',
+        '',
+        `${Symbols.ARROW} Clique no botão abaixo para abrir um ticket.`,
+        `${Symbols.ARROW} Descreva sua solicitação e aguarde o atendimento.`,
+        '',
+        `${Symbols.DOT} Apenas um ticket por vez.`
+      ].join('\n');
 
-    const embed = new EmbedBuilder()
-      .setTitle(title)
-      .setDescription(description)
-      .setColor(0x3b82f6);
+    const embed = buildEmbed({
+      title,
+      description,
+      color: Colors.PRIMARY,
+      thumbnail: interaction.client.user.displayAvatarURL({ size: 256 }),
+      footer: 'Ernas Helper · Atendimento'
+    });
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()

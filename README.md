@@ -2,18 +2,58 @@
 
 Bot administrativo para o Discord da Ernas.
 
-## Funcoes iniciais
+## Funcionalidades
 
-- Painel de abertura de tickets com botao.
-- Canal privado por ticket.
-- Cargo de suporte com acesso automatico.
-- Fechar, reabrir, assumir e excluir tickets.
-- Transcript simples das ultimas 100 mensagens.
-- Logs de entrada/saida de membros e mensagens apagadas/editadas.
+| Recurso | Descrição |
+|---------|-----------|
+| Sistema de tickets | Abertura via painel com botão, canal privado por ticket, numeração sequencial |
+| Gerenciamento de tickets | Assumir, fechar, reabrir, excluir (com confirmação), adicionar/remover membros |
+| Transcripts | Histórico das últimas 100 mensagens salvo automaticamente ao fechar ticket |
+| Logs administrativos | Entrada/saída de membros, mensagens apagadas e editadas |
+| Configuração flexível | Canais, cargos e categorias configuráveis via slash commands |
 
-## Configuracao local
+## Comandos
 
-1. Instale as dependencias:
+| Comando | Descrição | Permissão |
+|---------|-----------|-----------|
+| `/configurar logs canal:#canal` | Define o canal de logs | Administrador |
+| `/configurar tickets categoria:Tickets cargo_suporte:@Equipe` | Configura sistema de tickets | Administrador |
+| `/configurar status` | Mostra a configuração atual | Administrador |
+| `/painel-ticket` | Publica o painel de abertura de tickets | Administrador |
+| `/ticket adicionar usuario:@User` | Adiciona membro ao ticket atual | Equipe |
+| `/ticket remover usuario:@User` | Remove membro do ticket atual | Equipe |
+| `/sobre` | Informações sobre o bot | Todos |
+
+## Estrutura
+
+```
+bot-ernas-helper/
+├── commands/
+│   ├── configurar.js    # Configuração do bot
+│   ├── painel-ticket.js # Painel de abertura de tickets
+│   ├── sobre.js         # Informações do bot
+│   └── ticket.js        # Sistema de tickets
+├── utils/
+│   ├── branding.js      # Cores, símbolos e helpers visuais
+│   ├── logging.js       # Envio de logs ao canal configurado
+│   ├── permissions.js   # Verificação de permissões
+│   └── storage.js       # Persistência em JSON
+├── scripts/
+│   └── check-commands.js # Validação de comandos
+├── data/                # Dados persistidos (gitignored)
+├── index.js             # Entry point
+├── package.json
+└── .env                 # Token do bot (gitignored)
+```
+
+## Pré-requisitos
+
+- Node.js 18+
+- Token de bot do Discord com as intents `Server Members` e `Message Content`
+
+## Configuração local
+
+1. Instale as dependências:
 
 ```bash
 npm install
@@ -31,15 +71,15 @@ DISCORD_TOKEN=token_do_bot
 npm start
 ```
 
-## Configuracao no Discord
+## Configuração no Discord
 
 No Developer Portal, configure o aplicativo `bot-ernas-helper`:
 
-- **Bot > Token:** gere/copiei o token e use como `DISCORD_TOKEN` na VPS.
+- **Bot > Token:** gere/copie o token e use como `DISCORD_TOKEN`.
 - **Bot > Privileged Gateway Intents:** ative `Server Members Intent` e `Message Content Intent`.
 - **Installation > Guild Install:** habilite `bot` e `applications.commands`.
-- **OAuth2/Installation ou OAuth2 URL Generator > Scopes:** marque `bot` e `applications.commands`.
-- **Bot Permissions:** use `Administrator` no inicio, ou permissao granular com `Manage Channels`, `Manage Roles`, `Manage Messages`, `View Channels`, `Send Messages`, `Read Message History`, `Use Slash Commands`, `Attach Files`.
+- **OAuth2 > Scopes:** marque `bot` e `applications.commands`.
+- **Bot Permissions:** `Administrator` ou granular: `Manage Channels`, `Manage Roles`, `Manage Messages`, `View Channels`, `Send Messages`, `Read Message History`, `Use Slash Commands`, `Attach Files`.
 
 Depois de adicionar ao servidor:
 
@@ -58,3 +98,5 @@ Configure estes secrets no GitHub:
 - `SSH_PRIVATE_KEY`: chave privada SSH da VPS.
 
 Na VPS, crie o `.env` em `/home/dev/bot-ernas-helper/.env` com `DISCORD_TOKEN`.
+
+Veja [DEPLOY_GUIDE.md](DEPLOY_GUIDE.md) para mais detalhes.
