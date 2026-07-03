@@ -219,6 +219,8 @@ module.exports = {
         return true;
       }
 
+      await interaction.deferReply({ ephemeral: true });
+
       const reason = interaction.fields.getTextInputValue('reason');
 
       // Gerar numero sequencial
@@ -246,12 +248,11 @@ module.exports = {
         updateGuildConfig(interaction.guild.id, (guildConfig) => {
           guildConfig.ticketCounter = Math.max(0, (guildConfig.ticketCounter || 0) - 1);
         });
-        await interaction.reply({
+        await interaction.editReply({
           embeds: [buildEmbed({
             description: 'Não foi possível criar o canal do ticket. Tente novamente.',
             color: Colors.DANGER
-          })],
-          ephemeral: true
+          })]
         });
         return true;
       }
@@ -309,12 +310,11 @@ module.exports = {
         color: Colors.PRIMARY
       });
 
-      await interaction.reply({
+      await interaction.editReply({
         embeds: [buildEmbed({
           description: `Ticket criado: ${channel}`,
           color: Colors.SUCCESS
-        })],
-        ephemeral: true
+        })]
       });
       return true;
     }

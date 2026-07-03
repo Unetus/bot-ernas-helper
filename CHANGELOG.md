@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.2
+
+### Correções
+- Select menu do painel de tickets agora é roteado para o handler de componentes (antes exibia "Esta interação falhou" ao selecionar uma opção).
+- Abertura de ticket via modal usa `deferReply` para evitar timeout em criação de canal/envio de mensagens demorada.
+
 ## 2.0.1
 
 ### Correções

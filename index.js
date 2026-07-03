@@ -83,7 +83,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return;
     }
 
-    if (interaction.isButton() || interaction.isModalSubmit()) {
+    if (interaction.isButton() || interaction.isModalSubmit() || interaction.isStringSelectMenu()) {
       for (const command of client.commands.values()) {
         if (command.handleComponent && await command.handleComponent(interaction)) {
           return;
