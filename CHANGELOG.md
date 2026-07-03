@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.0.1
+
+### Correções
+- Checagem de equipe agora ocorre antes de confirmar/cancelar exclusão de ticket, impedindo que usuários comuns excluam tickets.
+- `/ticket adicionar|remover` valida se o canal atual é um ticket antes de alterar permissões.
+- Log de mensagem editada não quebra mais em mensagens parciais (autor opcional).
+- `ticketCounter` é revertido se a criação do canal de ticket falhar.
+
+### Infra
+- `storage.js` com cache em memória e escrita atômica (temp + rename), reduzindo I/O e evitando corrupção do `config.json`.
+- Handlers globais para `unhandledRejection`, `uncaughtException` e erros de shard/cliente.
+- Removidos símbolos mortos (`LOCK`/`UNLOCK`) e `getGuildConfig` redundante em `configurar tickets`.
+- Opções do painel de tickets sem o sufixo "(Placeholder)".
+
 ## 2.0.0
 
 ### Visual

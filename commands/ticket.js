@@ -135,6 +135,18 @@ module.exports = {
       return;
     }
 
+    const config = getGuildConfig(interaction.guild.id);
+    if (!config.tickets?.[interaction.channel.id]) {
+      await interaction.reply({
+        embeds: [buildEmbed({
+          description: 'Este canal não é um ticket.',
+          color: Colors.WARNING
+        })],
+        ephemeral: true
+      });
+      return;
+    }
+
     const user = interaction.options.getUser('usuario', true);
     const subcommand = interaction.options.getSubcommand();
     const allow = subcommand === 'adicionar';
@@ -216,17 +228,33 @@ module.exports = {
 
       const paddedNumber = String(ticketNumber).padStart(4, '0');
 
-      const channel = await interaction.guild.channels.create({
-        name: `ticket-${paddedNumber}`,
-        type: ChannelType.GuildText,
-        parent: config.ticketCategoryId,
-        topic: `Ticket ${Symbols.TICKET}${paddedNumber} ${Symbols.DASH} ${interaction.user.tag} (${interaction.user.id})`,
-        permissionOverwrites: [
-          { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-          { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
-          { id: config.supportRoleId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageMessages] }
-        ]
-      });
+      let channel;
+      try {
+        channel = await interaction.guild.channels.create({
+          name: `ticket-${paddedNumber}`,
+          type: ChannelType.GuildText,
+          parent: config.ticketCategoryId,
+          topic: `Ticket ${Symbols.TICKET}${paddedNumber} ${Symbols.DASH} ${interaction.user.tag} (${interaction.user.id})`,
+          permissionOverwrites: [
+            { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+            { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+            { id: config.supportRoleId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.ManageMessages] }
+          ]
+        });
+      } catch (error) {
+        console.error('[ERRO] Falha ao criar canal de ticket:', error);
+        updateGuildConfig(interaction.guild.id, (guildConfig) => {
+          guildConfig.ticketCounter = Math.max(0, (guildConfig.ticketCounter || 0) - 1);
+        });
+        await interaction.reply({
+          embeds: [buildEmbed({
+            description: 'Não foi possível criar o canal do ticket. Tente novamente.',
+            color: Colors.DANGER
+          })],
+          ephemeral: true
+        });
+        return true;
+      }
 
       updateGuildConfig(interaction.guild.id, (guildConfig) => {
         guildConfig.tickets[channel.id] = {
@@ -291,6 +319,18 @@ module.exports = {
       return true;
     }
 
+    // ----- Verificar staff para demais ações -----
+    if (!isStaff(interaction.member)) {
+      await interaction.reply({
+        embeds: [buildEmbed({
+          description: 'Apenas a equipe pode usar esta ação.',
+          color: Colors.DANGER
+        })],
+        ephemeral: true
+      });
+      return true;
+    }
+
     // ----- Cancelar exclusão -----
     if (interaction.customId === 'ticket:delete-cancel') {
       await interaction.update({
@@ -330,18 +370,6 @@ module.exports = {
         components: []
       });
       setTimeout(() => interaction.channel.delete('Ticket excluído').catch(() => null), 5000);
-      return true;
-    }
-
-    // ----- Verificar staff para demais ações -----
-    if (!isStaff(interaction.member)) {
-      await interaction.reply({
-        embeds: [buildEmbed({
-          description: 'Apenas a equipe pode usar esta ação.',
-          color: Colors.DANGER
-        })],
-        ephemeral: true
-      });
       return true;
     }
 

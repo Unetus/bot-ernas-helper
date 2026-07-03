@@ -49,15 +49,15 @@ module.exports = {
         .setPlaceholder('Selecione uma opção de atendimento...')
         .addOptions(
           new StringSelectMenuOptionBuilder()
-            .setLabel('Dúvidas (Placeholder)')
+            .setLabel('Dúvidas')
             .setDescription('Selecione para tirar dúvidas em geral.')
             .setValue('duvidas'),
           new StringSelectMenuOptionBuilder()
-            .setLabel('Suporte (Placeholder)')
+            .setLabel('Suporte')
             .setDescription('Selecione para reportar problemas ou bugs.')
             .setValue('suporte'),
           new StringSelectMenuOptionBuilder()
-            .setLabel('Outros (Placeholder)')
+            .setLabel('Outros')
             .setDescription('Selecione para outros assuntos.')
             .setValue('outros')
         )
