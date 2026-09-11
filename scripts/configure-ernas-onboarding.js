@@ -54,22 +54,6 @@ async function deleteOverwrite(channel, roleId) {
   await channel.permissionOverwrites.delete(roleId, REASON);
 }
 
-async function prepareDefaultChannels(guild) {
-  const everyone = guild.id;
-  for (const id of [
-    IDS.channels.generalChat,
-    IDS.channels.funChat,
-    IDS.channels.commands
-  ]) {
-    const channel = guild.channels.cache.get(id) || await guild.channels.fetch(id);
-    await editOverwrite(channel, everyone, {
-      ViewChannel: true,
-      SendMessages: true,
-      ReadMessageHistory: true
-    });
-  }
-}
-
 async function configurePermissions(guild) {
   const c = IDS.channels;
   const r = IDS.roles;
@@ -82,26 +66,26 @@ async function configurePermissions(guild) {
     ViewChannel: true,
     ReadMessageHistory: true
   });
-  await deleteOverwrite(welcomeCategory, r.player);
-  await deleteOverwrite(welcomeCategory, r.outsider);
+  await editOverwrite(welcomeCategory, r.player, { ViewChannel: false });
+  await editOverwrite(welcomeCategory, r.outsider, { ViewChannel: false });
   await deleteOverwrite(welcomeCategory, r.legacyNovice);
 
   for (const id of [c.startHere, c.faq, c.createPlayer]) {
     const channel = await fetchChannel(id);
-    await editOverwrite(channel, everyone, { ViewChannel: false, SendMessages: false });
+    await editOverwrite(channel, everyone, { SendMessages: false });
     await editOverwrite(channel, r.seed, {
       ViewChannel: true,
       SendMessages: false,
       ReadMessageHistory: true,
       UseApplicationCommands: true
     });
-    await deleteOverwrite(channel, r.player);
-    await deleteOverwrite(channel, r.outsider);
+    await editOverwrite(channel, r.player, { ViewChannel: false });
+    await editOverwrite(channel, r.outsider, { ViewChannel: false });
     await deleteOverwrite(channel, r.legacyNovice);
   }
 
   const noviceChat = await fetchChannel(c.noviceChat);
-  await editOverwrite(noviceChat, everyone, { ViewChannel: false });
+  await editOverwrite(noviceChat, everyone, { SendMessages: false });
   await editOverwrite(noviceChat, r.seed, {
     ViewChannel: true,
     SendMessages: true,
@@ -111,8 +95,8 @@ async function configurePermissions(guild) {
     AddReactions: true,
     UseApplicationCommands: true
   });
-  await deleteOverwrite(noviceChat, r.player);
-  await deleteOverwrite(noviceChat, r.outsider);
+  await editOverwrite(noviceChat, r.player, { ViewChannel: false });
+  await editOverwrite(noviceChat, r.outsider, { ViewChannel: false });
   await deleteOverwrite(noviceChat, r.legacyNovice);
 
   for (const id of [c.supportCategory, c.ticketPanel]) {
@@ -149,6 +133,7 @@ async function configurePermissions(guild) {
 
   for (const id of [c.generalChat, c.funChat, c.commands]) {
     const channel = await fetchChannel(id);
+    await deleteOverwrite(channel, everyone);
     await editOverwrite(channel, r.seed, { ViewChannel: false });
     await editOverwrite(channel, r.outsider, { ViewChannel: false });
     await deleteOverwrite(channel, r.legacyNovice);
@@ -193,7 +178,7 @@ function serializePrompt(prompt) {
   };
 }
 
-async function configureNativeOnboarding() {
+async function inspectNativeOnboarding() {
   const endpoint = `https://discord.com/api/v10/guilds/${IDS.guild}/onboarding`;
   const headers = {
     Authorization: `Bot ${process.env.DISCORD_TOKEN}`,
@@ -212,49 +197,11 @@ async function configureNativeOnboarding() {
     throw new Error('Pergunta de intenção de jogo não encontrada no onboarding.');
   }
 
-  // Canais privados não podem estar diretamente vinculados ao Onboarding:
-  // o Discord exige que todo channel_id dessa lista seja legível por
-  // @everyone. A resposta entrega o cargo; as permissões desse cargo revelam
-  // a categoria correta imediatamente.
-  const seedChannels = [];
-  const outsiderChannels = [
-    IDS.channels.about,
-    IDS.channels.platform,
-    IDS.channels.tabletop,
-    IDS.channels.token
-  ];
-  const defaultChannelIds = [
-    IDS.channels.about,
-    IDS.channels.tabletop,
-    IDS.channels.token,
-    IDS.channels.generalChat,
-    IDS.channels.funChat,
-    IDS.channels.commands,
-    IDS.channels.platform
-  ];
-
-  playPrompt.options.forEach((option, index) => {
-    if (index < 3) {
-      option.role_ids = [IDS.roles.seed];
-      option.channel_ids = seedChannels;
-      return;
-    }
-    option.title = 'Ainda estou conhecendo';
-    option.description = 'Quero conhecer o projeto antes de criar um personagem.';
-    option.role_ids = [IDS.roles.outsider];
-    option.channel_ids = outsiderChannels;
-  });
-
-  const updateResponse = await fetch(endpoint, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify({ prompts, default_channel_ids: defaultChannelIds })
-  });
-  if (!updateResponse.ok) {
-    const body = await updateResponse.text();
-    throw new Error(`Falha ao atualizar onboarding: HTTP ${updateResponse.status} ${body}`);
-  }
-  return updateResponse.json();
+  return {
+    enabled: current.enabled,
+    firstThreeUseSeed: playPrompt.options.slice(0, 3).every((option) => option.role_ids.includes(IDS.roles.seed)),
+    observerHandledByBot: true
+  };
 }
 
 async function main() {
@@ -267,9 +214,8 @@ async function main() {
     await guild.roles.fetch();
     await guild.channels.fetch();
 
-    await prepareDefaultChannels(guild);
-    const onboarding = await configureNativeOnboarding();
     await configurePermissions(guild);
+    const onboarding = await inspectNativeOnboarding();
     updateGuildConfig(IDS.guild, (config) => {
       config.seedRoleId = IDS.roles.seed;
       config.outsiderRoleId = IDS.roles.outsider;
@@ -287,6 +233,8 @@ async function main() {
     console.log(JSON.stringify({
       permissionsConfigured: true,
       onboardingEnabled: onboarding.enabled,
+      firstThreeUseSeed: onboarding.firstThreeUseSeed,
+      observerHandledByBot: onboarding.observerHandledByBot,
       hierarchyOk: hierarchy.ok,
       botRole: hierarchy.botRole.name,
       blockedRoles: hierarchy.blockedRoles.map((role) => role.name)

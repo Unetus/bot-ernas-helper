@@ -1,3 +1,5 @@
+const { GuildMemberFlags } = require('discord.js');
+
 function uniqueRoleIds(values) {
   return [...new Set(values.filter(Boolean))];
 }
@@ -82,7 +84,12 @@ async function reconcileRoleTransition(oldMember, newMember, config) {
   let removable = [];
   let reason = null;
 
-  if (ids.playerRoleId && newMember.roles.cache.has(ids.playerRoleId)) {
+  const hasPlayer = Boolean(ids.playerRoleId && newMember.roles.cache.has(ids.playerRoleId));
+  const hasSeed = Boolean(ids.seedRoleId && newMember.roles.cache.has(ids.seedRoleId));
+  const hasOutsider = Boolean(ids.outsiderRoleId && newMember.roles.cache.has(ids.outsiderRoleId));
+  const completedOnboarding = newMember.flags.has(GuildMemberFlags.CompletedOnboarding);
+
+  if (hasPlayer) {
     removable = transitionRoleIds(config).filter((roleId) => newMember.roles.cache.has(roleId));
     reason = 'Cargo Jogadores ativo; encerrando onboarding';
   } else if (added(ids.seedRoleId)) {
@@ -93,6 +100,23 @@ async function reconcileRoleTransition(oldMember, newMember, config) {
     removable = uniqueRoleIds([ids.seedRoleId, ids.legacyNoviceRoleId])
       .filter((roleId) => newMember.roles.cache.has(roleId));
     reason = 'Usuário decidiu conhecer o projeto antes de jogar';
+  } else if (
+    ids.outsiderRoleId &&
+    completedOnboarding &&
+    !hasSeed &&
+    !hasOutsider &&
+    (
+      !oldMember.flags.has(GuildMemberFlags.CompletedOnboarding) ||
+      Boolean(ids.seedRoleId && oldMember.roles.cache.has(ids.seedRoleId))
+    )
+  ) {
+    const hierarchy = await validateRoleHierarchy(newMember.guild, [ids.outsiderRoleId]);
+    if (!hierarchy.ok) {
+      console.error('[ONBOARDING] Hierarquia impede atribuir Forasteiro:', hierarchyMessage(hierarchy));
+      return;
+    }
+    await newMember.roles.add(ids.outsiderRoleId, 'Onboarding concluído sem opção de jogatina');
+    return;
   }
 
   if (removable.length === 0) return;
