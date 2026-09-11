@@ -112,7 +112,7 @@ async function configureNativeOnboarding() {
     default_channel_ids: current.default_channel_ids || [],
     prompts
   };
-  const response = await fetch(endpoint, { method: 'PATCH', headers, body: JSON.stringify(payload) });
+  const response = await fetch(endpoint, { method: 'PUT', headers, body: JSON.stringify(payload) });
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
     throw new Error(`Falha ao atualizar onboarding: HTTP ${response.status} ${detail.slice(0, 300)}`);
