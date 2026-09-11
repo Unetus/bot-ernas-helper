@@ -60,7 +60,6 @@ async function configurePermissions(guild) {
   const fetchChannel = async (id) => guild.channels.cache.get(id) || guild.channels.fetch(id);
 
   const welcomeCategory = await fetchChannel(c.welcomeCategory);
-  await editOverwrite(welcomeCategory, everyone, { ViewChannel: false });
   await editOverwrite(welcomeCategory, r.seed, {
     ViewChannel: true,
     ReadMessageHistory: true
