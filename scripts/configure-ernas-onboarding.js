@@ -114,7 +114,7 @@ async function configurePermissions(guild) {
   });
   await editOverwrite(noviceChat, r.player, {
     ViewChannel: true,
-    SendMessages: false,
+    SendMessages: true,
     ReadMessageHistory: true
   });
 
