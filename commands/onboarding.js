@@ -1,4 +1,10 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const {
+  SlashCommandBuilder,
+  PermissionFlagsBits,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle
+} = require('discord.js');
 const { getGuildConfig } = require('../utils/storage');
 const { Colors, buildEmbed } = require('../utils/branding');
 const {
@@ -10,6 +16,32 @@ const {
 } = require('../utils/onboardingRoles');
 
 const SITE_URL = 'https://toe.ernas.com.br/criar-personagem';
+
+function linkButton(label, url) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setLabel(label)
+      .setStyle(ButtonStyle.Link)
+      .setURL(url)
+  );
+}
+
+function syncButton() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('onboarding:sync')
+      .setLabel('Sincronizar personagem')
+      .setStyle(ButtonStyle.Primary)
+  );
+}
+
+function guideUrl(guildId) {
+  return `https://discord.com/channels/${guildId}`;
+}
+
+function privateEmbed(options) {
+  return { embeds: [buildEmbed(options)], ephemeral: true };
+}
 
 function roleStatus(config, key, label) {
   return config[key] ? `✓ ${label}: <@&${config[key]}>` : `✕ ${label}: não configurado`;
@@ -59,7 +91,11 @@ module.exports = {
     if (!['onboarding:sync', 'onboarding:progress'].includes(customId)) return false;
 
     if (!interaction.guild) {
-      await interaction.reply({ content: 'Esta ação só pode ser usada dentro do servidor.', ephemeral: true });
+      await interaction.reply(privateEmbed({
+        title: 'Ação disponível no servidor',
+        description: 'Este botão funciona dentro do servidor Tales of Ernas. Volte para lá e tente novamente.',
+        color: Colors.WARNING
+      }));
       return true;
     }
 
@@ -70,11 +106,19 @@ module.exports = {
     const apiKey = process.env.ARKANDIA_API_KEY;
 
     if (!roles.playerRoleId || !roles.seedRoleId || !roles.outsiderRoleId) {
-      await interaction.editReply('O onboarding ainda não foi configurado pela equipe.');
+      await interaction.editReply(privateEmbed({
+        title: 'Onboarding em preparação',
+        description: 'A equipe ainda está finalizando esta etapa. Tente novamente em alguns instantes ou procure o suporte.',
+        color: Colors.WARNING
+      }));
       return true;
     }
     if (!baseUrl || !apiKey) {
-      await interaction.editReply('A sincronização está temporariamente indisponível. Tente novamente mais tarde.');
+      await interaction.editReply(privateEmbed({
+        title: 'Sincronização indisponível',
+        description: 'Não foi possível conectar ao serviço de personagens agora. Aguarde um pouco e tente novamente.',
+        color: Colors.WARNING
+      }));
       return true;
     }
 
@@ -86,13 +130,21 @@ module.exports = {
       });
     } catch (error) {
       console.error('[ONBOARDING] API request failed:', error.message);
-      await interaction.editReply('Não foi possível consultar o site agora. Tente novamente em instantes.');
+      await interaction.editReply(privateEmbed({
+        title: 'Não foi possível consultar seu personagem',
+        description: 'O serviço demorou a responder. Tente novamente em instantes; seu progresso não foi perdido.',
+        color: Colors.WARNING
+      }));
       return true;
     }
 
     const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
     if (!member) {
-      await interaction.editReply('Não foi possível localizar seu perfil neste servidor.');
+      await interaction.editReply(privateEmbed({
+        title: 'Perfil não encontrado',
+        description: 'Não localizamos seu perfil neste servidor. Confirme se está usando a conta correta e tente novamente.',
+        color: Colors.WARNING
+      }));
       return true;
     }
 
@@ -112,7 +164,7 @@ module.exports = {
           : !synced
             ? 'Clique em **Já tenho um personagem** para concluir a sincronização.'
             : 'Tudo certo! Abra #tabletop para começar.';
-      await interaction.editReply({
+      const progressPayload = {
         embeds: [buildEmbed({
           title: 'Seu progresso',
           description: [
@@ -128,38 +180,66 @@ module.exports = {
           ].join('\n'),
           color: synced ? Colors.SUCCESS : Colors.PRIMARY
         })]
-      });
+      };
+      if (!synced && !hasCharacter) progressPayload.components = [linkButton('Criar personagem', SITE_URL)];
+      else if (!synced && hasCharacter) progressPayload.components = [syncButton()];
+      await interaction.editReply(progressPayload);
       return true;
     }
 
     if (hasOutsiderRole && !hasSeedRole && !hasPlayerRole) {
-      await interaction.editReply([
-        'Antes de sincronizar, abra **Canais e cargos** no Guia do Servidor e altere',
-        '**Como você pretende vivenciar Ernas?** para uma das opções de jogatina.'
-      ].join('\n'));
+      await interaction.editReply({
+        ...privateEmbed({
+          title: 'Escolha como quer viver Ernas',
+          description: [
+            'Você está como **Forasteiro**, então a sincronização ainda não está liberada.',
+            '',
+            'Abra **Canais e cargos** no Guia do Servidor e altere **Como você pretende vivenciar Ernas?** para uma das opções de jogatina. Depois, volte aqui e tente novamente.',
+          ].join('\n'),
+          color: Colors.INFO
+        }),
+        components: [linkButton('Abrir Guia do Servidor', guideUrl(interaction.guild.id))]
+      });
       return true;
     }
 
     if (response.status === 404) {
       await interaction.editReply({
-        content: `Não encontramos um personagem ativo vinculado a este Discord. Crie ou autorize sua conta no site e tente novamente: ${SITE_URL}`
+        ...privateEmbed({
+          title: 'Personagem ainda não vinculado',
+          description: 'Não encontramos um personagem ativo vinculado a este Discord. Crie seu personagem no site e, ao concluir, volte aqui para sincronizar.',
+          color: Colors.PRIMARY
+        }),
+        components: [linkButton('Criar personagem', SITE_URL)]
       });
       return true;
     }
     if (!response.ok) {
       console.error('[ONBOARDING] API returned status', response.status);
-      await interaction.editReply('A consulta do personagem falhou. Tente novamente em instantes.');
+      await interaction.editReply(privateEmbed({
+        title: 'Consulta não concluída',
+        description: 'Não conseguimos confirmar seu personagem agora. Tente novamente em instantes.',
+        color: Colors.WARNING
+      }));
       return true;
     }
 
     try {
       const result = await promoteToPlayer(member, config);
       if (!result.ok && result.reason === 'hierarchy') {
-        await interaction.editReply(hierarchyMessage(result.hierarchy));
+        await interaction.editReply(privateEmbed({
+          title: 'Sincronização precisa de um ajuste',
+          description: hierarchyMessage(result.hierarchy),
+          color: Colors.WARNING
+        }));
         return true;
       }
       if (!result.ok) {
-        await interaction.editReply('O cargo Jogadores não está configurado. Avise a equipe pelo suporte.');
+        await interaction.editReply(privateEmbed({
+          title: 'Sincronização indisponível',
+          description: 'O cargo de jogador ainda não está configurado pela equipe. Avise o suporte para concluirmos seu acesso.',
+          color: Colors.WARNING
+        }));
         return true;
       }
 
@@ -175,7 +255,11 @@ module.exports = {
       });
     } catch (error) {
       console.error('[ONBOARDING] Role update failed:', error.message);
-      await interaction.editReply('O personagem foi encontrado, mas não foi possível atualizar seus cargos. Avise a equipe pelo suporte.');
+      await interaction.editReply(privateEmbed({
+        title: 'Personagem encontrado',
+        description: 'Encontramos seu personagem, mas não conseguimos liberar o cargo agora. Avise o suporte; a equipe poderá concluir a sincronização para você.',
+        color: Colors.WARNING
+      }));
     }
     return true;
   }
