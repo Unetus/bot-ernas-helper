@@ -14,8 +14,11 @@ function onboardingRoleIds(config) {
 }
 
 function transitionRoleIds(config) {
-  const { seedRoleId, outsiderRoleId, legacyNoviceRoleId } = onboardingRoleIds(config);
-  return uniqueRoleIds([seedRoleId, outsiderRoleId, legacyNoviceRoleId]);
+  // O fluxo atual usa somente os cargos de entrada (Semente/Novatos) e o
+  // cargo final de Jogadores. Forasteiro foi descontinuado e não participa
+  // mais de nenhuma transição.
+  const { seedRoleId, legacyNoviceRoleId } = onboardingRoleIds(config);
+  return uniqueRoleIds([seedRoleId, legacyNoviceRoleId]);
 }
 
 async function fetchBotMember(guild) {
@@ -86,13 +89,17 @@ async function reconcileRoleTransition(oldMember, newMember, config) {
 
   const hasPlayer = Boolean(ids.playerRoleId && newMember.roles.cache.has(ids.playerRoleId));
   const hasSeed = Boolean(ids.seedRoleId && newMember.roles.cache.has(ids.seedRoleId));
-  const hasOutsider = Boolean(ids.outsiderRoleId && newMember.roles.cache.has(ids.outsiderRoleId));
+  const hasLegacyNovice = Boolean(ids.legacyNoviceRoleId && newMember.roles.cache.has(ids.legacyNoviceRoleId));
   const completedOnboarding = newMember.flags.has(GuildMemberFlags.CompletedOnboarding);
 
   if (hasPlayer) {
     removable = transitionRoleIds(config).filter((roleId) => newMember.roles.cache.has(roleId));
     reason = 'Cargo Jogadores ativo; encerrando onboarding';
-  } else if (added(ids.legacyNoviceRoleId) && ids.seedRoleId) {
+  } else if (added(ids.legacyNoviceRoleId) && hasSeed) {
+    // Compatibilidade com versões antigas do onboarding que atribuíam
+    // Novatos junto com Semente. O cargo legado é removido apenas quando a
+    // Semente também está presente; Novatos sozinho é um estado válido de
+    // entrada e deve continuar vendo a categoria Bem-vindo.
     const hierarchy = await validateRoleHierarchy(newMember.guild, [
       ids.seedRoleId,
       ids.legacyNoviceRoleId
@@ -105,29 +112,25 @@ async function reconcileRoleTransition(oldMember, newMember, config) {
     await newMember.roles.remove(ids.legacyNoviceRoleId, 'Cargo legado convertido em Semente de Ernas');
     return;
   } else if (added(ids.seedRoleId)) {
-    removable = uniqueRoleIds([ids.outsiderRoleId, ids.legacyNoviceRoleId])
+    removable = uniqueRoleIds([ids.legacyNoviceRoleId])
       .filter((roleId) => newMember.roles.cache.has(roleId));
-    reason = 'Usuário decidiu jogar; removendo cargo de observador';
-  } else if (added(ids.outsiderRoleId)) {
-    removable = uniqueRoleIds([ids.seedRoleId, ids.legacyNoviceRoleId])
-      .filter((roleId) => newMember.roles.cache.has(roleId));
-    reason = 'Usuário decidiu conhecer o projeto antes de jogar';
+    reason = 'Usuário decidiu jogar; removendo cargo de entrada';
   } else if (
-    ids.outsiderRoleId &&
+    ids.legacyNoviceRoleId &&
     completedOnboarding &&
     !hasSeed &&
-    !hasOutsider &&
-    (
-      !oldMember.flags.has(GuildMemberFlags.CompletedOnboarding) ||
-      Boolean(ids.seedRoleId && oldMember.roles.cache.has(ids.seedRoleId))
-    )
+    !hasLegacyNovice &&
+    !oldMember.flags.has(GuildMemberFlags.CompletedOnboarding)
   ) {
-    const hierarchy = await validateRoleHierarchy(newMember.guild, [ids.outsiderRoleId]);
+    // Membros que concluírem o onboarding sem uma escolha de jogatina
+    // recebem Novatos, nunca mais Forasteiro. Assim também entram em
+    // Bem-vindo para concluir o fluxo dentro do servidor.
+    const hierarchy = await validateRoleHierarchy(newMember.guild, [ids.legacyNoviceRoleId]);
     if (!hierarchy.ok) {
-      console.error('[ONBOARDING] Hierarquia impede atribuir Forasteiro:', hierarchyMessage(hierarchy));
+      console.error('[ONBOARDING] Hierarquia impede atribuir Novatos:', hierarchyMessage(hierarchy));
       return;
     }
-    await newMember.roles.add(ids.outsiderRoleId, 'Onboarding concluído sem opção de jogatina');
+    await newMember.roles.add(ids.legacyNoviceRoleId, 'Onboarding concluído; entrada em Bem-vindo');
     return;
   }
 

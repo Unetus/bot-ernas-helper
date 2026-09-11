@@ -72,7 +72,7 @@ module.exports = {
           'Fluxo configurado para novos membros:',
           '',
           roleStatus(config, 'seedRoleId', 'Semente de Ernas'),
-          roleStatus(config, 'outsiderRoleId', 'Forasteiro'),
+          roleStatus(config, 'noviceRoleId', 'Novatos'),
           roleStatus(config, 'playerRoleId', 'Jogadores'),
           config.noviceChannelId ? `✓ Chat de iniciantes: <#${config.noviceChannelId}>` : '✕ Chat de iniciantes: não configurado',
           '',
@@ -108,7 +108,7 @@ module.exports = {
     const baseUrl = (process.env.ARKANDIA_API_URL || '').replace(/\/+$/, '');
     const apiKey = process.env.ARKANDIA_API_KEY;
 
-    if (!roles.playerRoleId || !roles.seedRoleId || !roles.outsiderRoleId) {
+    if (!roles.playerRoleId || (!roles.seedRoleId && !roles.legacyNoviceRoleId)) {
       await interaction.editReply(privateEmbed({
         title: 'Onboarding em preparação',
         description: 'A equipe ainda está finalizando esta etapa. Tente novamente em alguns instantes ou procure o suporte.',
@@ -154,19 +154,17 @@ module.exports = {
     const hasCharacter = response.ok;
     const hasPlayerRole = member.roles.cache.has(roles.playerRoleId);
     const hasSeedRole = member.roles.cache.has(roles.seedRoleId);
-    const hasOutsiderRole = member.roles.cache.has(roles.outsiderRoleId);
+    const hasNoviceRole = member.roles.cache.has(roles.legacyNoviceRoleId);
     const hasTransitionRole = transitionRoleIds(config).some((roleId) => member.roles.cache.has(roleId));
     const synced = hasCharacter && hasPlayerRole && !hasTransitionRole;
 
     if (customId === 'onboarding:progress') {
       const mark = (value) => value ? '✅' : '⬜';
-      const next = hasOutsiderRole && !hasSeedRole
-        ? 'Abra **Canais e cargos** no Guia do Servidor e escolha uma opção de jogatina.'
-        : !hasCharacter
-          ? 'Abra #crie-seu-jogador e crie seu personagem.'
-            : !synced
-              ? 'A sincronização automática está em andamento. Se ela não concluir em alguns instantes, clique em **Sincronizar personagem**.'
-            : 'Tudo certo! Abra #tabletop para começar.';
+      const next = !hasCharacter
+        ? 'Abra #crie-seu-jogador e crie seu personagem.'
+        : !synced
+          ? 'A sincronização automática está em andamento. Se ela não concluir em alguns instantes, clique em **Sincronizar personagem**.'
+          : 'Tudo certo! Abra #tabletop para começar.';
       const progressPayload = {
         embeds: [buildEmbed({
           title: 'Seu progresso',
@@ -174,7 +172,7 @@ module.exports = {
             'Acompanhe as etapas do onboarding:',
             '',
             mark(true) + ' Entrar no servidor',
-            mark(hasSeedRole || hasPlayerRole) + ' Escolher participar da jogatina',
+            mark(hasSeedRole || hasNoviceRole || hasPlayerRole) + ' Entrar no fluxo de onboarding',
             mark(hasCharacter) + ' Criar um personagem ativo',
             mark(synced) + ' Sincronizar Discord e personagem',
             mark(synced) + ' Liberar acesso de jogador',
@@ -187,22 +185,6 @@ module.exports = {
       if (!synced && !hasCharacter) progressPayload.components = [linkButton('Criar personagem', SITE_URL)];
       else if (!synced && hasCharacter) progressPayload.components = [syncButton()];
       await interaction.editReply(progressPayload);
-      return true;
-    }
-
-    if (hasOutsiderRole && !hasSeedRole && !hasPlayerRole) {
-      await interaction.editReply({
-        ...privateEmbed({
-          title: 'Escolha como quer viver Ernas',
-          description: [
-            'Você está como **Forasteiro**, então a sincronização ainda não está liberada.',
-            '',
-            'Abra **Canais e cargos** no Guia do Servidor e altere **Como você pretende vivenciar Ernas?** para uma das opções de jogatina. Depois, volte aqui e tente novamente.',
-          ].join('\n'),
-          color: Colors.INFO
-        }),
-        components: [linkButton('Abrir Guia do Servidor', guideUrl(interaction.guild.id))]
-      });
       return true;
     }
 

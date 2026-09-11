@@ -60,20 +60,12 @@ async function processEvent(client, event) {
 
   const config = getGuildConfig(guild.id);
   const roles = onboardingRoleIds(config);
-  if (!roles.playerRoleId || !roles.seedRoleId || !roles.outsiderRoleId) {
+  if (!roles.playerRoleId || (!roles.seedRoleId && !roles.legacyNoviceRoleId)) {
     return { outcome: 'retry', error: 'Cargos do onboarding ainda não configurados.', retryAfterSeconds: 300 };
   }
 
   const member = await guild.members.fetch(event.discord_user_id).catch(() => null);
   if (!member) return { outcome: 'retry', error: 'Usuário ainda não está no servidor.', retryAfterSeconds: 300 };
-
-  // Forasteiro precisa primeiro escolher participar da jogatina. A criação do
-  // personagem não deve burlar essa regra do onboarding.
-  if (member.roles.cache.has(roles.outsiderRoleId)
-      && !member.roles.cache.has(roles.seedRoleId)
-      && !member.roles.cache.has(roles.playerRoleId)) {
-    return { outcome: 'retry', error: 'Aguardando escolha de jogatina (Semente de Ernas).', retryAfterSeconds: 60 };
-  }
 
   const basePublic = String(process.env.ARKANDIA_API_URL || '').replace(/\/+$/, '');
   const apiKey = String(process.env.ARKANDIA_API_KEY || '').trim();

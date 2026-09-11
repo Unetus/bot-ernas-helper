@@ -12,8 +12,7 @@ const IDS = {
   roles: {
     player: '1515505515260543006',
     legacyNovice: '1547708804114681906',
-    seed: '1547828303367249920',
-    outsider: '1547982860701536276'
+    seed: '1547828303367249920'
   },
   channels: {
     about: '1515507019958845441',
@@ -71,7 +70,6 @@ async function configurePermissions(guild) {
     ReadMessageHistory: true
   });
   await editOverwrite(welcomeCategory, r.player, { ViewChannel: false });
-  await editOverwrite(welcomeCategory, r.outsider, { ViewChannel: false });
 
   for (const id of [c.startHere, c.faq, c.createPlayer]) {
     const channel = await fetchChannel(id);
@@ -89,7 +87,6 @@ async function configurePermissions(guild) {
       UseApplicationCommands: true
     });
     await editOverwrite(channel, r.player, { ViewChannel: false });
-    await editOverwrite(channel, r.outsider, { ViewChannel: false });
   }
 
   const noviceChat = await fetchChannel(c.noviceChat);
@@ -113,7 +110,6 @@ async function configurePermissions(guild) {
     UseApplicationCommands: true
   });
   await editOverwrite(noviceChat, r.player, { ViewChannel: false });
-  await editOverwrite(noviceChat, r.outsider, { ViewChannel: false });
 
   for (const id of [c.supportCategory, c.ticketPanel]) {
     const channel = await fetchChannel(id);
@@ -135,20 +131,17 @@ async function configurePermissions(guild) {
       ReadMessageHistory: true,
       UseApplicationCommands: true
     });
-    await editOverwrite(channel, r.outsider, { ViewChannel: false });
   }
 
   const gameplayCategory = await fetchChannel(c.gameplayCategory);
   await editOverwrite(gameplayCategory, r.seed, { ViewChannel: false });
   await editOverwrite(gameplayCategory, r.legacyNovice, { ViewChannel: false });
-  await editOverwrite(gameplayCategory, r.outsider, { ViewChannel: true });
   await editOverwrite(gameplayCategory, r.player, { ViewChannel: true });
 
   for (const id of [c.platform, c.tabletop, c.token]) {
     const channel = await fetchChannel(id);
     await editOverwrite(channel, r.seed, { ViewChannel: false });
     await editOverwrite(channel, r.legacyNovice, { ViewChannel: false });
-    await editOverwrite(channel, r.outsider, { ViewChannel: true });
     await editOverwrite(channel, r.player, { ViewChannel: true });
   }
 
@@ -157,20 +150,17 @@ async function configurePermissions(guild) {
     await deleteOverwrite(channel, everyone);
     await editOverwrite(channel, r.seed, { ViewChannel: false });
     await editOverwrite(channel, r.legacyNovice, { ViewChannel: false });
-    await editOverwrite(channel, r.outsider, { ViewChannel: false });
   }
 
   for (const id of IDS.restrictedCategories) {
     const category = await fetchChannel(id);
     await editOverwrite(category, r.seed, { ViewChannel: false });
     await editOverwrite(category, r.legacyNovice, { ViewChannel: false });
-    await editOverwrite(category, r.outsider, { ViewChannel: false });
   }
 
   const about = await fetchChannel(c.about);
   await editOverwrite(about, everyone, { ViewChannel: true, SendMessages: false });
   await editOverwrite(about, r.seed, { ViewChannel: true, ReadMessageHistory: true });
-  await editOverwrite(about, r.outsider, { ViewChannel: true, ReadMessageHistory: true });
   await editOverwrite(about, r.player, { ViewChannel: true, ReadMessageHistory: true });
 }
 
@@ -222,7 +212,7 @@ async function inspectNativeOnboarding() {
     enabled: current.enabled,
     firstThreeUseSeed: playPrompt.options.slice(0, 3).every((option) => option.role_ids.includes(IDS.roles.seed)),
     firstThreeUseLegacyNovice: playPrompt.options.slice(0, 3).every((option) => option.role_ids.includes(IDS.roles.legacyNovice)),
-    observerHandledByBot: true
+    observerHandledByBot: false
   };
 }
 
@@ -240,7 +230,8 @@ async function main() {
     const onboarding = await inspectNativeOnboarding();
     updateGuildConfig(IDS.guild, (config) => {
       config.seedRoleId = IDS.roles.seed;
-      config.outsiderRoleId = IDS.roles.outsider;
+      config.noviceRoleId = IDS.roles.legacyNovice;
+      config.outsiderRoleId = null;
       config.playerRoleId = IDS.roles.player;
       config.noviceChannelId = IDS.channels.noviceChat;
     });
@@ -248,7 +239,6 @@ async function main() {
     const hierarchy = await validateRoleHierarchy(guild, [
       IDS.roles.player,
       IDS.roles.seed,
-      IDS.roles.outsider,
       IDS.roles.legacyNovice
     ]);
 
