@@ -60,7 +60,7 @@ async function processEvent(client, event) {
 
   const config = getGuildConfig(guild.id);
   const roles = onboardingRoleIds(config);
-  if (!roles.playerRoleId || (!roles.seedRoleId && !roles.legacyNoviceRoleId)) {
+  if (!roles.playerRoleId || !roles.legacyNoviceRoleId) {
     return { outcome: 'retry', error: 'Cargos do onboarding ainda não configurados.', retryAfterSeconds: 300 };
   }
 
@@ -69,9 +69,7 @@ async function processEvent(client, event) {
 
   // A criação no site não substitui a conclusão do onboarding nativo. Só
   // promovemos membros que já receberam um dos estados de entrada válidos.
-  const hasEntryRole = [roles.seedRoleId, roles.legacyNoviceRoleId]
-    .filter(Boolean)
-    .some((roleId) => member.roles.cache.has(roleId));
+  const hasEntryRole = member.roles.cache.has(roles.legacyNoviceRoleId);
   if (!hasEntryRole && !member.roles.cache.has(roles.playerRoleId)) {
     return { outcome: 'retry', error: 'Aguardando conclusão do onboarding do servidor.', retryAfterSeconds: 60 };
   }

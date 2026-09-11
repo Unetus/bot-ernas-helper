@@ -107,7 +107,7 @@ module.exports = {
     const baseUrl = (process.env.ARKANDIA_API_URL || '').replace(/\/+$/, '');
     const apiKey = process.env.ARKANDIA_API_KEY;
 
-    if (!roles.playerRoleId || (!roles.seedRoleId && !roles.legacyNoviceRoleId)) {
+    if (!roles.playerRoleId || !roles.legacyNoviceRoleId) {
       await interaction.editReply(privateEmbed({
         title: 'Onboarding em preparação',
         description: 'A equipe ainda está finalizando esta etapa. Tente novamente em alguns instantes ou procure o suporte.',
@@ -152,9 +152,8 @@ module.exports = {
 
     const hasCharacter = response.ok;
     const hasPlayerRole = member.roles.cache.has(roles.playerRoleId);
-    const hasSeedRole = member.roles.cache.has(roles.seedRoleId);
     const hasNoviceRole = member.roles.cache.has(roles.legacyNoviceRoleId);
-    if (!hasPlayerRole && !hasSeedRole && !hasNoviceRole) {
+    if (!hasPlayerRole && !hasNoviceRole) {
       await interaction.editReply(privateEmbed({
         title: 'Conclua o onboarding do servidor',
         description: 'Escolha uma opção em **Como você pretende vivenciar Ernas?** para liberar a categoria Bem-vindo e continuar a criação do personagem.',
@@ -179,7 +178,7 @@ module.exports = {
             'Acompanhe as etapas do onboarding:',
             '',
             mark(true) + ' Entrar no servidor',
-            mark(hasSeedRole || hasNoviceRole || hasPlayerRole) + ' Entrar no fluxo de onboarding',
+            mark(hasNoviceRole || hasPlayerRole) + ' Entrar no fluxo de onboarding',
             mark(hasCharacter) + ' Criar um personagem ativo',
             mark(synced) + ' Sincronizar Discord e personagem',
             mark(synced) + ' Liberar acesso de jogador',
