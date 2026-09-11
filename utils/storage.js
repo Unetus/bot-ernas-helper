@@ -10,6 +10,11 @@ const defaultGuildConfig = {
   ticketCategoryId: null,
   supportRoleId: null,
   transcriptChannelId: null,
+  noviceRoleId: null,
+  seedRoleId: null,
+  outsiderRoleId: null,
+  playerRoleId: null,
+  noviceChannelId: null,
   ticketCounter: 0,
   tickets: {}
 };
@@ -18,12 +23,12 @@ const defaultState = {
   guilds: {}
 };
 
-let cache = null;
-
 function ensureDb() {
   if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
   if (!fs.existsSync(dbPath)) fs.writeFileSync(dbPath, JSON.stringify(defaultState, null, 2));
 }
+
+let cache = null;
 
 function loadState() {
   if (cache) return cache;
@@ -31,7 +36,7 @@ function loadState() {
   try {
     cache = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
   } catch (error) {
-    console.error('[ERRO] Falha ao ler config.json, recriando estado padrao:', error);
+    console.error('[ERRO] Falha ao ler config.json, recriando estado padrão:', error);
     cache = { ...defaultState };
     persist();
   }
@@ -45,9 +50,9 @@ function persist() {
   try {
     fs.renameSync(tmpPath, dbPath);
   } catch (error) {
-    console.error('[ERRO] Falha no rename atomico, escrevendo direto:', error);
+    console.error('[ERRO] Falha no rename atômico, escrevendo diretamente:', error);
     fs.writeFileSync(dbPath, JSON.stringify(cache, null, 2));
-    try { fs.unlinkSync(tmpPath); } catch (_) { /* tmp ja renomeado ou inexistente */ }
+    try { fs.unlinkSync(tmpPath); } catch (_) { /* arquivo já movido ou ausente */ }
   }
 }
 
@@ -57,7 +62,7 @@ function getGuildConfig(guildId) {
     state.guilds[guildId] = { ...defaultGuildConfig };
     persist();
   }
-  return state.guilds[guildId];
+  return { ...defaultGuildConfig, ...state.guilds[guildId] };
 }
 
 function updateGuildConfig(guildId, updater) {
@@ -67,7 +72,7 @@ function updateGuildConfig(guildId, updater) {
   }
   updater(state.guilds[guildId]);
   persist();
-  return state.guilds[guildId];
+  return { ...defaultGuildConfig, ...state.guilds[guildId] };
 }
 
 module.exports = {

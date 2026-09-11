@@ -72,11 +72,13 @@ module.exports = {
       const supportRole = interaction.options.getRole('cargo_suporte', true);
       const transcriptChannel = interaction.options.getChannel('canal_transcripts');
 
-      const config = updateGuildConfig(interaction.guild.id, (config) => {
+      updateGuildConfig(interaction.guild.id, (config) => {
         config.ticketCategoryId = category.id;
         config.supportRoleId = supportRole.id;
         config.transcriptChannelId = transcriptChannel?.id || null;
       });
+
+      const config = getGuildConfig(interaction.guild.id);
 
       await interaction.reply({
         embeds: [buildEmbed({

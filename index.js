@@ -15,6 +15,13 @@ const {
 
 const { appendLog } = require('./utils/logging');
 const { Colors, Symbols, buildEmbed } = require('./utils/branding');
+const { getGuildConfig } = require('./utils/storage');
+const {
+  onboardingRoleIds,
+  reconcileRoleTransition,
+  transitionRoleIds,
+  validateRoleHierarchy
+} = require('./utils/onboardingRoles');
 
 const token = process.env.DISCORD_TOKEN;
 
@@ -68,6 +75,23 @@ client.once(Events.ClientReady, async () => {
   } catch (error) {
     console.error('[BOT] Erro ao publicar comandos slash:', error);
   }
+
+  for (const guild of client.guilds.cache.values()) {
+    const config = getGuildConfig(guild.id);
+    const roles = onboardingRoleIds(config);
+    if (!roles.playerRoleId) continue;
+    try {
+      const hierarchy = await validateRoleHierarchy(guild, [roles.playerRoleId, ...transitionRoleIds(config)]);
+      if (!hierarchy.ok) {
+        console.warn(
+          `[ONBOARDING] ${hierarchy.botRole.name} precisa ficar acima de: ` +
+          hierarchy.blockedRoles.map((role) => role.name).join(', ')
+        );
+      }
+    } catch (error) {
+      console.error('[ONBOARDING] Falha ao auditar hierarquia:', error.message);
+    }
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -83,7 +107,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return;
     }
 
-    if (interaction.isButton() || interaction.isModalSubmit() || interaction.isStringSelectMenu()) {
+    if (interaction.isButton() || interaction.isStringSelectMenu() || interaction.isModalSubmit()) {
       for (const command of client.commands.values()) {
         if (command.handleComponent && await command.handleComponent(interaction)) {
           return;
@@ -120,6 +144,15 @@ client.on(Events.GuildMemberAdd, async (member) => {
       { name: 'Conta criada em', value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`, inline: true }
     ]
   });
+});
+
+client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
+  const config = getGuildConfig(newMember.guild.id);
+  try {
+    await reconcileRoleTransition(oldMember, newMember, config);
+  } catch (error) {
+    console.error('[ONBOARDING] Falha ao reconciliar cargos:', error.message);
+  }
 });
 
 client.on(Events.GuildMemberRemove, async (member) => {
@@ -159,7 +192,7 @@ client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
     color: Colors.WARNING,
     fields: [
       { name: 'Canal', value: `${newMessage.channel}`, inline: true },
-      { name: 'Autor', value: `${newMessage.author?.tag || 'desconhecido'} (${newMessage.author?.id || 'N/A'})`, inline: true },
+      { name: 'Autor', value: `${newMessage.author.tag} (${newMessage.author.id})`, inline: true },
       { name: 'Antes', value: (oldMessage.content || 'Indisponível').slice(0, 1024) },
       { name: 'Depois', value: (newMessage.content || 'Indisponível').slice(0, 1024) }
     ]
@@ -170,11 +203,11 @@ client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
 // Tratamento de erros globais
 // ---------------------------------------------------------------------------
 process.on('unhandledRejection', (reason) => {
-  console.error('[ERRO] Rejeicao nao tratada:', reason);
+  console.error('[ERRO] Rejeição não tratada:', reason);
 });
 
 process.on('uncaughtException', (error) => {
-  console.error('[ERRO] Excecao nao capturada:', error);
+  console.error('[ERRO] Exceção não capturada:', error);
 });
 
 client.on(Events.Error, (error) => {

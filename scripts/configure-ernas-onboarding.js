@@ -1,0 +1,260 @@
+const {
+  Client,
+  GatewayIntentBits,
+  PermissionFlagsBits
+} = require('discord.js');
+const { updateGuildConfig } = require('../utils/storage');
+const { validateRoleHierarchy } = require('../utils/onboardingRoles');
+
+require('dotenv').config({ quiet: true });
+
+const IDS = {
+  guild: '1514745357463195759',
+  roles: {
+    player: '1515505515260543006',
+    legacyNovice: '1547708804114681906',
+    seed: '1547828303367249920',
+    outsider: '1547982860701536276'
+  },
+  channels: {
+    about: '1515507019958845441',
+    supportCategory: '1516503470608355480',
+    ticketPanel: '1516503523796455606',
+    welcomeCategory: '1547725356339957811',
+    faq: '1547708134506889246',
+    noviceChat: '1547708814781059113',
+    startHere: '1547724809482272788',
+    createPlayer: '1547724811139031060',
+    gameplayCategory: '1547242324885770261',
+    platform: '1547242445463363655',
+    tabletop: '1547242590758510592',
+    token: '1547250392427925546'
+  },
+  restrictedCategories: [
+    '1524528385253052638', // Mural
+    '1547718495775752214', // Atividades
+    '1547720267646771321', // Memória
+    '1547723766191231117', // Comunidade
+    '1529140345064128613', // Área do jogador
+    '1514745360071917589'  // Canais de voz
+  ]
+};
+
+const REASON = 'Ajuste do fluxo de onboarding de Tales of Ernas';
+
+async function editOverwrite(channel, roleId, permissions) {
+  await channel.permissionOverwrites.edit(roleId, permissions, { reason: REASON });
+}
+
+async function deleteOverwrite(channel, roleId) {
+  if (!channel.permissionOverwrites.cache.has(roleId)) return;
+  await channel.permissionOverwrites.delete(roleId, REASON);
+}
+
+async function configurePermissions(guild) {
+  const c = IDS.channels;
+  const r = IDS.roles;
+  const everyone = guild.id;
+  const fetchChannel = async (id) => guild.channels.cache.get(id) || guild.channels.fetch(id);
+
+  const welcomeCategory = await fetchChannel(c.welcomeCategory);
+  await editOverwrite(welcomeCategory, everyone, { ViewChannel: false });
+  await editOverwrite(welcomeCategory, r.seed, {
+    ViewChannel: true,
+    ReadMessageHistory: true
+  });
+  await deleteOverwrite(welcomeCategory, r.player);
+  await deleteOverwrite(welcomeCategory, r.outsider);
+  await deleteOverwrite(welcomeCategory, r.legacyNovice);
+
+  for (const id of [c.startHere, c.faq, c.createPlayer]) {
+    const channel = await fetchChannel(id);
+    await editOverwrite(channel, everyone, { ViewChannel: false, SendMessages: false });
+    await editOverwrite(channel, r.seed, {
+      ViewChannel: true,
+      SendMessages: false,
+      ReadMessageHistory: true,
+      UseApplicationCommands: true
+    });
+    await deleteOverwrite(channel, r.player);
+    await deleteOverwrite(channel, r.outsider);
+    await deleteOverwrite(channel, r.legacyNovice);
+  }
+
+  const noviceChat = await fetchChannel(c.noviceChat);
+  await editOverwrite(noviceChat, everyone, { ViewChannel: false });
+  await editOverwrite(noviceChat, r.seed, {
+    ViewChannel: true,
+    SendMessages: true,
+    ReadMessageHistory: true,
+    EmbedLinks: true,
+    AttachFiles: true,
+    AddReactions: true,
+    UseApplicationCommands: true
+  });
+  await deleteOverwrite(noviceChat, r.player);
+  await deleteOverwrite(noviceChat, r.outsider);
+  await deleteOverwrite(noviceChat, r.legacyNovice);
+
+  for (const id of [c.supportCategory, c.ticketPanel]) {
+    const channel = await fetchChannel(id);
+    await editOverwrite(channel, r.seed, {
+      ViewChannel: true,
+      SendMessages: true,
+      ReadMessageHistory: true,
+      UseApplicationCommands: true
+    });
+    await editOverwrite(channel, r.player, {
+      ViewChannel: true,
+      SendMessages: true,
+      ReadMessageHistory: true,
+      UseApplicationCommands: true
+    });
+    await editOverwrite(channel, r.outsider, { ViewChannel: false });
+    await deleteOverwrite(channel, r.legacyNovice);
+  }
+
+  const gameplayCategory = await fetchChannel(c.gameplayCategory);
+  await editOverwrite(gameplayCategory, r.seed, { ViewChannel: false });
+  await editOverwrite(gameplayCategory, r.outsider, { ViewChannel: true });
+  await editOverwrite(gameplayCategory, r.player, { ViewChannel: true });
+  await deleteOverwrite(gameplayCategory, r.legacyNovice);
+
+  for (const id of IDS.restrictedCategories) {
+    const category = await fetchChannel(id);
+    await editOverwrite(category, r.seed, { ViewChannel: false });
+    await editOverwrite(category, r.outsider, { ViewChannel: false });
+    await deleteOverwrite(category, r.legacyNovice);
+  }
+
+  const about = await fetchChannel(c.about);
+  await editOverwrite(about, everyone, { ViewChannel: true, SendMessages: false });
+  await editOverwrite(about, r.seed, { ViewChannel: true, ReadMessageHistory: true });
+  await editOverwrite(about, r.outsider, { ViewChannel: true, ReadMessageHistory: true });
+  await editOverwrite(about, r.player, { ViewChannel: true, ReadMessageHistory: true });
+}
+
+function serializeOption(option) {
+  return {
+    id: option.id,
+    title: option.title,
+    description: option.description || null,
+    emoji_id: option.emoji?.id || null,
+    emoji_name: option.emoji?.name || null,
+    emoji_animated: Boolean(option.emoji?.animated),
+    role_ids: option.role_ids || [],
+    channel_ids: option.channel_ids || []
+  };
+}
+
+function serializePrompt(prompt) {
+  return {
+    id: prompt.id,
+    type: prompt.type,
+    title: prompt.title,
+    single_select: prompt.single_select,
+    required: prompt.required,
+    in_onboarding: prompt.in_onboarding,
+    options: prompt.options.map(serializeOption)
+  };
+}
+
+async function configureNativeOnboarding() {
+  const endpoint = `https://discord.com/api/v10/guilds/${IDS.guild}/onboarding`;
+  const headers = {
+    Authorization: `Bot ${process.env.DISCORD_TOKEN}`,
+    'Content-Type': 'application/json',
+    'X-Audit-Log-Reason': encodeURIComponent(REASON)
+  };
+
+  const currentResponse = await fetch(endpoint, { headers });
+  if (!currentResponse.ok) {
+    throw new Error(`Falha ao consultar onboarding: HTTP ${currentResponse.status}`);
+  }
+  const current = await currentResponse.json();
+  const prompts = current.prompts.map(serializePrompt);
+  const playPrompt = prompts.find((prompt) => prompt.title === 'Como você pretende vivenciar Ernas?');
+  if (!playPrompt || playPrompt.options.length < 4) {
+    throw new Error('Pergunta de intenção de jogo não encontrada no onboarding.');
+  }
+
+  const seedChannels = [
+    IDS.channels.startHere,
+    IDS.channels.faq,
+    IDS.channels.noviceChat,
+    IDS.channels.createPlayer,
+    IDS.channels.ticketPanel
+  ];
+  const outsiderChannels = [
+    IDS.channels.about,
+    IDS.channels.platform,
+    IDS.channels.tabletop,
+    IDS.channels.token
+  ];
+
+  playPrompt.options.forEach((option, index) => {
+    if (index < 3) {
+      option.role_ids = [IDS.roles.seed];
+      option.channel_ids = seedChannels;
+      return;
+    }
+    option.title = 'Ainda estou conhecendo';
+    option.description = 'Quero conhecer o projeto antes de criar um personagem.';
+    option.role_ids = [IDS.roles.outsider];
+    option.channel_ids = outsiderChannels;
+  });
+
+  const updateResponse = await fetch(endpoint, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({ prompts })
+  });
+  if (!updateResponse.ok) {
+    const body = await updateResponse.text();
+    throw new Error(`Falha ao atualizar onboarding: HTTP ${updateResponse.status} ${body}`);
+  }
+  return updateResponse.json();
+}
+
+async function main() {
+  if (!process.env.DISCORD_TOKEN) throw new Error('DISCORD_TOKEN não configurado.');
+
+  const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
+  await client.login(process.env.DISCORD_TOKEN);
+  try {
+    const guild = await client.guilds.fetch(IDS.guild);
+    await guild.roles.fetch();
+    await guild.channels.fetch();
+
+    await configurePermissions(guild);
+    const onboarding = await configureNativeOnboarding();
+    updateGuildConfig(IDS.guild, (config) => {
+      config.seedRoleId = IDS.roles.seed;
+      config.outsiderRoleId = IDS.roles.outsider;
+      config.playerRoleId = IDS.roles.player;
+      config.noviceChannelId = IDS.channels.noviceChat;
+    });
+
+    const hierarchy = await validateRoleHierarchy(guild, [
+      IDS.roles.player,
+      IDS.roles.seed,
+      IDS.roles.outsider,
+      IDS.roles.legacyNovice
+    ]);
+
+    console.log(JSON.stringify({
+      permissionsConfigured: true,
+      onboardingEnabled: onboarding.enabled,
+      hierarchyOk: hierarchy.ok,
+      botRole: hierarchy.botRole.name,
+      blockedRoles: hierarchy.blockedRoles.map((role) => role.name)
+    }, null, 2));
+  } finally {
+    client.destroy();
+  }
+}
+
+main().catch((error) => {
+  console.error(error.stack || error.message);
+  process.exitCode = 1;
+});

@@ -49,16 +49,20 @@ module.exports = {
         .setPlaceholder('Selecione uma opção de atendimento...')
         .addOptions(
           new StringSelectMenuOptionBuilder()
+            .setLabel('Denúncias')
+            .setDescription('Faça uma denúncia.')
+            .setValue('denuncias'),
+          new StringSelectMenuOptionBuilder()
             .setLabel('Dúvidas')
-            .setDescription('Selecione para tirar dúvidas em geral.')
+            .setDescription('Retire dúvidas técnicas acerca do projeto.')
             .setValue('duvidas'),
           new StringSelectMenuOptionBuilder()
-            .setLabel('Suporte')
-            .setDescription('Selecione para reportar problemas ou bugs.')
-            .setValue('suporte'),
+            .setLabel('Token Aprimorado')
+            .setDescription('Faça seu orçamento para um token aprimorado.')
+            .setValue('token-aprimorado'),
           new StringSelectMenuOptionBuilder()
             .setLabel('Outros')
-            .setDescription('Selecione para outros assuntos.')
+            .setDescription('Informe outros assuntos pertinentes a um ticket.')
             .setValue('outros')
         )
     );

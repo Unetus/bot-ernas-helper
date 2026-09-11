@@ -4,13 +4,13 @@ const { EmbedBuilder } = require('discord.js');
 // Paleta de cores
 // ---------------------------------------------------------------------------
 const Colors = {
-  PRIMARY: 0x6366f1,   // indigo
-  SUCCESS: 0x22c55e,   // green
-  WARNING: 0xf59e0b,   // amber
-  DANGER: 0xef4444,    // red
-  INFO: 0x06b6d4,      // cyan
-  MUTED: 0x6b7280,     // gray
-  ACCENT: 0x8b5cf6     // violet
+  PRIMARY: 0xd4af37,   // dourado Tales of Ernas
+  SUCCESS: 0x5dbb8c,   // verde suave
+  WARNING: 0xe0aa45,   // dourado de alerta
+  DANGER: 0xd95c6d,    // vermelho suave
+  INFO: 0x80a9c4,      // azul acinzentado
+  MUTED: 0x7f8793,     // cinza azulado
+  ACCENT: 0x8c6fb6     // violeta
 };
 
 // ---------------------------------------------------------------------------
@@ -26,7 +26,9 @@ const Symbols = {
   OPEN: '○',
   FILLED: '●',
   DIVIDER: '─────────────────────────────',
-  TICKET: '#'
+  TICKET: '#',
+  LOCK: '✕',
+  UNLOCK: '○'
 };
 
 // ---------------------------------------------------------------------------
