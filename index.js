@@ -22,6 +22,7 @@ const {
   transitionRoleIds,
   validateRoleHierarchy
 } = require('./utils/onboardingRoles');
+const { startAutoOnboardingSync } = require('./utils/autoOnboardingSync');
 
 const token = process.env.DISCORD_TOKEN;
 
@@ -92,6 +93,7 @@ client.once(Events.ClientReady, async () => {
       console.error('[ONBOARDING] Falha ao auditar hierarquia:', error.message);
     }
   }
+  startAutoOnboardingSync(client);
 });
 
 // ---------------------------------------------------------------------------
