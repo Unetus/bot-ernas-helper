@@ -54,6 +54,22 @@ async function deleteOverwrite(channel, roleId) {
   await channel.permissionOverwrites.delete(roleId, REASON);
 }
 
+async function prepareDefaultChannels(guild) {
+  const everyone = guild.id;
+  for (const id of [
+    IDS.channels.generalChat,
+    IDS.channels.funChat,
+    IDS.channels.commands
+  ]) {
+    const channel = guild.channels.cache.get(id) || await guild.channels.fetch(id);
+    await editOverwrite(channel, everyone, {
+      ViewChannel: true,
+      SendMessages: true,
+      ReadMessageHistory: true
+    });
+  }
+}
+
 async function configurePermissions(guild) {
   const c = IDS.channels;
   const r = IDS.roles;
@@ -122,6 +138,21 @@ async function configurePermissions(guild) {
   await editOverwrite(gameplayCategory, r.outsider, { ViewChannel: true });
   await editOverwrite(gameplayCategory, r.player, { ViewChannel: true });
   await deleteOverwrite(gameplayCategory, r.legacyNovice);
+
+  for (const id of [c.platform, c.tabletop, c.token]) {
+    const channel = await fetchChannel(id);
+    await editOverwrite(channel, r.seed, { ViewChannel: false });
+    await editOverwrite(channel, r.outsider, { ViewChannel: true });
+    await editOverwrite(channel, r.player, { ViewChannel: true });
+    await deleteOverwrite(channel, r.legacyNovice);
+  }
+
+  for (const id of [c.generalChat, c.funChat, c.commands]) {
+    const channel = await fetchChannel(id);
+    await editOverwrite(channel, r.seed, { ViewChannel: false });
+    await editOverwrite(channel, r.outsider, { ViewChannel: false });
+    await deleteOverwrite(channel, r.legacyNovice);
+  }
 
   for (const id of IDS.restrictedCategories) {
     const category = await fetchChannel(id);
@@ -236,6 +267,7 @@ async function main() {
     await guild.roles.fetch();
     await guild.channels.fetch();
 
+    await prepareDefaultChannels(guild);
     const onboarding = await configureNativeOnboarding();
     await configurePermissions(guild);
     updateGuildConfig(IDS.guild, (config) => {
