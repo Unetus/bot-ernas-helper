@@ -1,5 +1,6 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const fs = require('fs');
+const crypto = require('crypto');
 const { getGuildConfig } = require('./storage');
 const { onboardingRoleIds, promoteToPlayer } = require('./onboardingRoles');
 
@@ -13,7 +14,10 @@ function appBaseUrl() {
 
 function secret() {
   if (process.env.ONBOARDING_SYNC_SECRET) return process.env.ONBOARDING_SYNC_SECRET.trim();
-  try { return fs.readFileSync('/var/tmp/ernas-activity-bot.secret', 'utf8').trim(); } catch { return ''; }
+  try {
+    const base = fs.readFileSync('/var/tmp/ernas-activity-bot.secret', 'utf8').trim();
+    return base ? crypto.createHmac('sha256', base).update('discord-onboarding-sync').digest('hex') : '';
+  } catch { return ''; }
 }
 
 function activityChannelUrl(guildId) {
