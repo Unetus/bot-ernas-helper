@@ -92,6 +92,18 @@ async function reconcileRoleTransition(oldMember, newMember, config) {
   if (hasPlayer) {
     removable = transitionRoleIds(config).filter((roleId) => newMember.roles.cache.has(roleId));
     reason = 'Cargo Jogadores ativo; encerrando onboarding';
+  } else if (added(ids.legacyNoviceRoleId) && ids.seedRoleId) {
+    const hierarchy = await validateRoleHierarchy(newMember.guild, [
+      ids.seedRoleId,
+      ids.legacyNoviceRoleId
+    ]);
+    if (!hierarchy.ok) {
+      console.error('[ONBOARDING] Hierarquia impede converter Novatos em Semente:', hierarchyMessage(hierarchy));
+      return;
+    }
+    await newMember.roles.add(ids.seedRoleId, 'Escolha de jogatina confirmada no Onboarding');
+    await newMember.roles.remove(ids.legacyNoviceRoleId, 'Cargo legado convertido em Semente de Ernas');
+    return;
   } else if (added(ids.seedRoleId)) {
     removable = uniqueRoleIds([ids.outsiderRoleId, ids.legacyNoviceRoleId])
       .filter((roleId) => newMember.roles.cache.has(roleId));

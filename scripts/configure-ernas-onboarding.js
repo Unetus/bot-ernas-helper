@@ -66,9 +66,12 @@ async function configurePermissions(guild) {
     ViewChannel: true,
     ReadMessageHistory: true
   });
+  await editOverwrite(welcomeCategory, r.legacyNovice, {
+    ViewChannel: true,
+    ReadMessageHistory: true
+  });
   await editOverwrite(welcomeCategory, r.player, { ViewChannel: false });
   await editOverwrite(welcomeCategory, r.outsider, { ViewChannel: false });
-  await deleteOverwrite(welcomeCategory, r.legacyNovice);
 
   for (const id of [c.startHere, c.faq, c.createPlayer]) {
     const channel = await fetchChannel(id);
@@ -79,9 +82,14 @@ async function configurePermissions(guild) {
       ReadMessageHistory: true,
       UseApplicationCommands: true
     });
+    await editOverwrite(channel, r.legacyNovice, {
+      ViewChannel: true,
+      SendMessages: false,
+      ReadMessageHistory: true,
+      UseApplicationCommands: true
+    });
     await editOverwrite(channel, r.player, { ViewChannel: false });
     await editOverwrite(channel, r.outsider, { ViewChannel: false });
-    await deleteOverwrite(channel, r.legacyNovice);
   }
 
   const noviceChat = await fetchChannel(c.noviceChat);
@@ -95,9 +103,17 @@ async function configurePermissions(guild) {
     AddReactions: true,
     UseApplicationCommands: true
   });
+  await editOverwrite(noviceChat, r.legacyNovice, {
+    ViewChannel: true,
+    SendMessages: true,
+    ReadMessageHistory: true,
+    EmbedLinks: true,
+    AttachFiles: true,
+    AddReactions: true,
+    UseApplicationCommands: true
+  });
   await editOverwrite(noviceChat, r.player, { ViewChannel: false });
   await editOverwrite(noviceChat, r.outsider, { ViewChannel: false });
-  await deleteOverwrite(noviceChat, r.legacyNovice);
 
   for (const id of [c.supportCategory, c.ticketPanel]) {
     const channel = await fetchChannel(id);
@@ -113,37 +129,42 @@ async function configurePermissions(guild) {
       ReadMessageHistory: true,
       UseApplicationCommands: true
     });
+    await editOverwrite(channel, r.legacyNovice, {
+      ViewChannel: true,
+      SendMessages: true,
+      ReadMessageHistory: true,
+      UseApplicationCommands: true
+    });
     await editOverwrite(channel, r.outsider, { ViewChannel: false });
-    await deleteOverwrite(channel, r.legacyNovice);
   }
 
   const gameplayCategory = await fetchChannel(c.gameplayCategory);
   await editOverwrite(gameplayCategory, r.seed, { ViewChannel: false });
+  await editOverwrite(gameplayCategory, r.legacyNovice, { ViewChannel: false });
   await editOverwrite(gameplayCategory, r.outsider, { ViewChannel: true });
   await editOverwrite(gameplayCategory, r.player, { ViewChannel: true });
-  await deleteOverwrite(gameplayCategory, r.legacyNovice);
 
   for (const id of [c.platform, c.tabletop, c.token]) {
     const channel = await fetchChannel(id);
     await editOverwrite(channel, r.seed, { ViewChannel: false });
+    await editOverwrite(channel, r.legacyNovice, { ViewChannel: false });
     await editOverwrite(channel, r.outsider, { ViewChannel: true });
     await editOverwrite(channel, r.player, { ViewChannel: true });
-    await deleteOverwrite(channel, r.legacyNovice);
   }
 
   for (const id of [c.generalChat, c.funChat, c.commands]) {
     const channel = await fetchChannel(id);
     await deleteOverwrite(channel, everyone);
     await editOverwrite(channel, r.seed, { ViewChannel: false });
+    await editOverwrite(channel, r.legacyNovice, { ViewChannel: false });
     await editOverwrite(channel, r.outsider, { ViewChannel: false });
-    await deleteOverwrite(channel, r.legacyNovice);
   }
 
   for (const id of IDS.restrictedCategories) {
     const category = await fetchChannel(id);
     await editOverwrite(category, r.seed, { ViewChannel: false });
+    await editOverwrite(category, r.legacyNovice, { ViewChannel: false });
     await editOverwrite(category, r.outsider, { ViewChannel: false });
-    await deleteOverwrite(category, r.legacyNovice);
   }
 
   const about = await fetchChannel(c.about);
@@ -200,6 +221,7 @@ async function inspectNativeOnboarding() {
   return {
     enabled: current.enabled,
     firstThreeUseSeed: playPrompt.options.slice(0, 3).every((option) => option.role_ids.includes(IDS.roles.seed)),
+    firstThreeUseLegacyNovice: playPrompt.options.slice(0, 3).every((option) => option.role_ids.includes(IDS.roles.legacyNovice)),
     observerHandledByBot: true
   };
 }
@@ -234,6 +256,7 @@ async function main() {
       permissionsConfigured: true,
       onboardingEnabled: onboarding.enabled,
       firstThreeUseSeed: onboarding.firstThreeUseSeed,
+      firstThreeUseLegacyNovice: onboarding.firstThreeUseLegacyNovice,
       observerHandledByBot: onboarding.observerHandledByBot,
       hierarchyOk: hierarchy.ok,
       botRole: hierarchy.botRole.name,
