@@ -155,6 +155,14 @@ module.exports = {
     const hasPlayerRole = member.roles.cache.has(roles.playerRoleId);
     const hasSeedRole = member.roles.cache.has(roles.seedRoleId);
     const hasNoviceRole = member.roles.cache.has(roles.legacyNoviceRoleId);
+    if (!hasPlayerRole && !hasSeedRole && !hasNoviceRole) {
+      await interaction.editReply(privateEmbed({
+        title: 'Conclua o onboarding do servidor',
+        description: 'Escolha uma opção em **Como você pretende vivenciar Ernas?** para liberar a categoria Bem-vindo e continuar a criação do personagem.',
+        color: Colors.INFO
+      }));
+      return true;
+    }
     const hasTransitionRole = transitionRoleIds(config).some((roleId) => member.roles.cache.has(roleId));
     const synced = hasCharacter && hasPlayerRole && !hasTransitionRole;
 

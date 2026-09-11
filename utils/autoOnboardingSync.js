@@ -67,6 +67,15 @@ async function processEvent(client, event) {
   const member = await guild.members.fetch(event.discord_user_id).catch(() => null);
   if (!member) return { outcome: 'retry', error: 'Usuário ainda não está no servidor.', retryAfterSeconds: 300 };
 
+  // A criação no site não substitui a conclusão do onboarding nativo. Só
+  // promovemos membros que já receberam um dos estados de entrada válidos.
+  const hasEntryRole = [roles.seedRoleId, roles.legacyNoviceRoleId]
+    .filter(Boolean)
+    .some((roleId) => member.roles.cache.has(roleId));
+  if (!hasEntryRole && !member.roles.cache.has(roles.playerRoleId)) {
+    return { outcome: 'retry', error: 'Aguardando conclusão do onboarding do servidor.', retryAfterSeconds: 60 };
+  }
+
   const basePublic = String(process.env.ARKANDIA_API_URL || '').replace(/\/+$/, '');
   const apiKey = String(process.env.ARKANDIA_API_KEY || '').trim();
   const verified = await verifyCharacter(basePublic, apiKey, event);
