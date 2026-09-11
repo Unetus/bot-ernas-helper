@@ -36,13 +36,11 @@ async function removeOverwrite(channel, roleId) {
 }
 
 async function configureWelcomeAndGameplay(guild) {
-  const everyone = guild.id;
   const r = IDS.roles;
   const welcome = guild.channels.cache.get(IDS.channels.welcomeCategory);
   const gameplay = guild.channels.cache.get(IDS.channels.gameplayCategory);
   if (!welcome || !gameplay) throw new Error('Categorias Bem-vindo ou Gameplay não encontradas.');
 
-  await editOverwrite(welcome, everyone, { ViewChannel: false });
   await editOverwrite(welcome, r.seed, { ViewChannel: true, ReadMessageHistory: true });
   await editOverwrite(welcome, r.novice, { ViewChannel: true, ReadMessageHistory: true });
   await editOverwrite(welcome, r.player, { ViewChannel: false });
@@ -50,7 +48,6 @@ async function configureWelcomeAndGameplay(guild) {
 
   const welcomeChannels = guild.channels.cache.filter((channel) => channel.parentId === welcome.id);
   for (const channel of welcomeChannels.values()) {
-    await editOverwrite(channel, everyone, { ViewChannel: false, SendMessages: false });
     await editOverwrite(channel, r.seed, { ViewChannel: true, ReadMessageHistory: true });
     await editOverwrite(channel, r.novice, { ViewChannel: true, ReadMessageHistory: true });
     await editOverwrite(channel, r.player, { ViewChannel: false });
@@ -182,4 +179,3 @@ main().catch((error) => {
   console.error(error.stack || error.message);
   process.exitCode = 1;
 });
-
