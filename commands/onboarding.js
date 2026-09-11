@@ -71,7 +71,6 @@ module.exports = {
         description: [
           'Fluxo configurado para novos membros:',
           '',
-          roleStatus(config, 'seedRoleId', 'Semente de Ernas'),
           roleStatus(config, 'noviceRoleId', 'Novatos'),
           roleStatus(config, 'playerRoleId', 'Jogadores'),
           config.noviceChannelId ? `✓ Chat de iniciantes: <#${config.noviceChannelId}>` : '✕ Chat de iniciantes: não configurado',
