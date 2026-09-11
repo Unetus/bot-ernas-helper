@@ -63,7 +63,11 @@ async function configurePermissions(guild) {
     ViewChannel: true,
     ReadMessageHistory: true
   });
-  await editOverwrite(welcomeCategory, r.player, { ViewChannel: false });
+  // Jogadores já aprovados continuam podendo consultar o onboarding e o FAQ.
+  await editOverwrite(welcomeCategory, r.player, {
+    ViewChannel: true,
+    ReadMessageHistory: true
+  });
 
   for (const id of [c.startHere, c.faq, c.createPlayer]) {
     const channel = await fetchChannel(id);
@@ -74,19 +78,27 @@ async function configurePermissions(guild) {
       ReadMessageHistory: true,
       UseApplicationCommands: true
     });
-    await editOverwrite(channel, r.player, { ViewChannel: false });
+    await editOverwrite(channel, r.player, {
+      ViewChannel: true,
+      SendMessages: false,
+      ReadMessageHistory: true
+    });
   }
 
   // Garante que qualquer canal novo criado dentro de Bem-vindo siga a mesma
-  // regra: somente Novatos acompanham o onboarding; Jogadores não enxergam
-  // a categoria após concluir o cadastro.
+  // regra: Novatos e Jogadores podem consultar o onboarding, sem permissão
+  // de escrita para Jogadores.
   for (const channel of guild.channels.cache.values()) {
     if (channel.parentId !== welcomeCategory.id || !channel.permissionOverwrites?.cache) continue;
     await editOverwrite(channel, r.legacyNovice, {
       ViewChannel: true,
       ReadMessageHistory: true
     });
-    await editOverwrite(channel, r.player, { ViewChannel: false });
+    await editOverwrite(channel, r.player, {
+      ViewChannel: true,
+      SendMessages: false,
+      ReadMessageHistory: true
+    });
   }
 
   const noviceChat = await fetchChannel(c.noviceChat);
@@ -100,7 +112,11 @@ async function configurePermissions(guild) {
     AddReactions: true,
     UseApplicationCommands: true
   });
-  await editOverwrite(noviceChat, r.player, { ViewChannel: false });
+  await editOverwrite(noviceChat, r.player, {
+    ViewChannel: true,
+    SendMessages: false,
+    ReadMessageHistory: true
+  });
 
   for (const id of [c.supportCategory, c.ticketPanel]) {
     const channel = await fetchChannel(id);
