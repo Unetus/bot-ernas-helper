@@ -77,6 +77,18 @@ async function configurePermissions(guild) {
     await editOverwrite(channel, r.player, { ViewChannel: false });
   }
 
+  // Garante que qualquer canal novo criado dentro de Bem-vindo siga a mesma
+  // regra: somente Novatos acompanham o onboarding; Jogadores não enxergam
+  // a categoria após concluir o cadastro.
+  for (const channel of guild.channels.cache.values()) {
+    if (channel.parentId !== welcomeCategory.id || !channel.permissionOverwrites?.cache) continue;
+    await editOverwrite(channel, r.legacyNovice, {
+      ViewChannel: true,
+      ReadMessageHistory: true
+    });
+    await editOverwrite(channel, r.player, { ViewChannel: false });
+  }
+
   const noviceChat = await fetchChannel(c.noviceChat);
   await editOverwrite(noviceChat, everyone, { SendMessages: false });
   await editOverwrite(noviceChat, r.legacyNovice, {

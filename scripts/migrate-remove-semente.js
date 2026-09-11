@@ -106,6 +106,7 @@ async function main() {
 
     // Limpa overrides órfãos antes de apagar o cargo.
     for (const channel of guild.channels.cache.values()) {
+      if (!channel.permissionOverwrites?.cache) continue;
       if (channel.permissionOverwrites.cache.has(seed.id)) {
         await channel.permissionOverwrites.delete(seed.id, REASON);
       }
@@ -136,4 +137,3 @@ main().catch((error) => {
   console.error(error.stack || error.message);
   process.exitCode = 1;
 });
-
