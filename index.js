@@ -192,7 +192,7 @@ client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
     color: Colors.WARNING,
     fields: [
       { name: 'Canal', value: `${newMessage.channel}`, inline: true },
-      { name: 'Autor', value: `${newMessage.author.tag} (${newMessage.author.id})`, inline: true },
+      { name: 'Autor', value: `${newMessage.author?.tag || 'desconhecido'} (${newMessage.author?.id || 'N/A'})`, inline: true },
       { name: 'Antes', value: (oldMessage.content || 'Indisponível').slice(0, 1024) },
       { name: 'Depois', value: (newMessage.content || 'Indisponível').slice(0, 1024) }
     ]
