@@ -98,9 +98,11 @@ async function configureNativeOnboarding() {
       options: prompt.options.map((option) => {
         const observer = option.title === 'Ainda estou conhecendo';
         const roleIds = observer ? [IDS.roles.novice] : [IDS.roles.seed];
-        const channelIds = observer
-          ? unique([IDS.channels.about, IDS.channels.welcomeCategory])
-          : unique([IDS.channels.welcomeCategory]);
+        // Canais escolhidos no onboarding nativo precisam ser legíveis por
+        // @everyone. A categoria Bem-vindo continua protegida por cargo e é
+        // liberada assim que Novatos/Semente são atribuídos; o ponto público
+        // de entrada é o canal Sobre.
+        const channelIds = [IDS.channels.about];
         return { ...option, role_ids: roleIds, channel_ids: channelIds };
       })
     };
@@ -109,7 +111,7 @@ async function configureNativeOnboarding() {
   const payload = {
     enabled: current.enabled,
     mode: current.mode,
-    default_channel_ids: current.default_channel_ids || [],
+    default_channel_ids: [IDS.channels.about],
     prompts
   };
   const response = await fetch(endpoint, { method: 'PUT', headers, body: JSON.stringify(payload) });
