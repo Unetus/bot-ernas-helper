@@ -111,7 +111,18 @@ async function configureNativeOnboarding() {
   const payload = {
     enabled: current.enabled,
     mode: current.mode,
-    default_channel_ids: [IDS.channels.about],
+    // O Discord exige no mínimo sete canais/categorias padrão legíveis por
+    // @everyone. Mantemos o Bem-vindo privado e usamos pontos públicos do
+    // servidor para cumprir essa exigência sem expor o onboarding.
+    default_channel_ids: [
+      IDS.channels.about,
+      IDS.channels.gameplayCategory,
+      '1547720267646771321', // Memória
+      '1514745360071917589', // Voz
+      '1514745360071917591', // Portões
+      '1548065487961858118', // Centro
+      '1548065516935970906'  // Guilda
+    ],
     prompts
   };
   const response = await fetch(endpoint, { method: 'PUT', headers, body: JSON.stringify(payload) });
