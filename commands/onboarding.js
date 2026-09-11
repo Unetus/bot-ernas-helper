@@ -164,8 +164,8 @@ module.exports = {
         ? 'Abra **Canais e cargos** no Guia do Servidor e escolha uma opção de jogatina.'
         : !hasCharacter
           ? 'Abra #crie-seu-jogador e crie seu personagem.'
-          : !synced
-            ? 'Clique em **Já tenho um personagem** para concluir a sincronização.'
+            : !synced
+              ? 'A sincronização automática está em andamento. Se ela não concluir em alguns instantes, clique em **Sincronizar personagem**.'
             : 'Tudo certo! Abra #tabletop para começar.';
       const progressPayload = {
         embeds: [buildEmbed({
@@ -210,7 +210,7 @@ module.exports = {
       await interaction.editReply({
         ...privateEmbed({
           title: 'Personagem ainda não vinculado',
-          description: 'Não encontramos um personagem ativo vinculado a este Discord. Crie seu personagem no site e, ao concluir, volte aqui para sincronizar.',
+          description: 'Não encontramos um personagem ativo vinculado a este Discord. Crie seu personagem no site; ao concluir, a liberação será automática. Se necessário, volte aqui para verificar novamente.',
           color: Colors.PRIMARY
         }),
         components: [linkButton('Criar personagem', SITE_URL)]
