@@ -163,7 +163,7 @@ module.exports = {
       const next = hasOutsiderRole && !hasSeedRole
         ? 'Abra **Canais e cargos** no Guia do Servidor e escolha uma opção de jogatina.'
         : !hasCharacter
-          ? 'Abra #crie-seu-personagem e crie seu personagem.'
+          ? 'Abra #crie-seu-jogador e crie seu personagem.'
           : !synced
             ? 'Clique em **Já tenho um personagem** para concluir a sincronização.'
             : 'Tudo certo! Abra #tabletop para começar.';
