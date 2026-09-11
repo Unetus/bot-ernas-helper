@@ -40,7 +40,7 @@ function guideUrl(guildId) {
 }
 
 function privateEmbed(options) {
-  return { embeds: [buildEmbed(options)], ephemeral: true };
+  return { embeds: [buildEmbed(options)] };
 }
 
 function roleStatus(config, key, label) {
@@ -91,11 +91,14 @@ module.exports = {
     if (!['onboarding:sync', 'onboarding:progress'].includes(customId)) return false;
 
     if (!interaction.guild) {
-      await interaction.reply(privateEmbed({
-        title: 'Ação disponível no servidor',
-        description: 'Este botão funciona dentro do servidor Tales of Ernas. Volte para lá e tente novamente.',
-        color: Colors.WARNING
-      }));
+      await interaction.reply({
+        ...privateEmbed({
+          title: 'Ação disponível no servidor',
+          description: 'Este botão funciona dentro do servidor Tales of Ernas. Volte para lá e tente novamente.',
+          color: Colors.WARNING
+        }),
+        ephemeral: true
+      });
       return true;
     }
 
