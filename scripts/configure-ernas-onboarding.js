@@ -1,7 +1,6 @@
 const {
   Client,
-  GatewayIntentBits,
-  PermissionFlagsBits
+  GatewayIntentBits
 } = require('discord.js');
 const { updateGuildConfig } = require('../utils/storage');
 const { validateRoleHierarchy } = require('../utils/onboardingRoles');
@@ -28,7 +27,11 @@ const IDS = {
     gameplayCategory: '1547242324885770261',
     platform: '1547242445463363655',
     tabletop: '1547242590758510592',
-    token: '1547250392427925546'
+    token: '1547250392427925546',
+    voiceGeneral: '1514745360071917591',
+    generalChat: '1547838941011644518',
+    funChat: '1547838985735372881',
+    commands: '1547839069134917722'
   },
   restrictedCategories: [
     '1524528385253052638', // Mural
@@ -178,18 +181,25 @@ async function configureNativeOnboarding() {
     throw new Error('Pergunta de intenção de jogo não encontrada no onboarding.');
   }
 
-  const seedChannels = [
-    IDS.channels.startHere,
-    IDS.channels.faq,
-    IDS.channels.noviceChat,
-    IDS.channels.createPlayer,
-    IDS.channels.ticketPanel
-  ];
+  // Canais privados não podem estar diretamente vinculados ao Onboarding:
+  // o Discord exige que todo channel_id dessa lista seja legível por
+  // @everyone. A resposta entrega o cargo; as permissões desse cargo revelam
+  // a categoria correta imediatamente.
+  const seedChannels = [];
   const outsiderChannels = [
     IDS.channels.about,
     IDS.channels.platform,
     IDS.channels.tabletop,
     IDS.channels.token
+  ];
+  const defaultChannelIds = [
+    IDS.channels.about,
+    IDS.channels.tabletop,
+    IDS.channels.token,
+    IDS.channels.generalChat,
+    IDS.channels.funChat,
+    IDS.channels.commands,
+    IDS.channels.platform
   ];
 
   playPrompt.options.forEach((option, index) => {
@@ -207,7 +217,7 @@ async function configureNativeOnboarding() {
   const updateResponse = await fetch(endpoint, {
     method: 'PUT',
     headers,
-    body: JSON.stringify({ prompts })
+    body: JSON.stringify({ prompts, default_channel_ids: defaultChannelIds })
   });
   if (!updateResponse.ok) {
     const body = await updateResponse.text();
@@ -226,8 +236,8 @@ async function main() {
     await guild.roles.fetch();
     await guild.channels.fetch();
 
-    await configurePermissions(guild);
     const onboarding = await configureNativeOnboarding();
+    await configurePermissions(guild);
     updateGuildConfig(IDS.guild, (config) => {
       config.seedRoleId = IDS.roles.seed;
       config.outsiderRoleId = IDS.roles.outsider;
