@@ -14,8 +14,24 @@ const {
   transitionRoleIds,
   validateRoleHierarchy
 } = require('../utils/onboardingRoles');
+const fs = require('fs');
+const crypto = require('crypto');
 
 const SITE_URL = 'https://toe.ernas.com.br/criar-personagem';
+const CREATE_CHARACTER_CUSTOM_ID = 'onboarding:create-character';
+
+function appBaseUrl() {
+  const configured = String(process.env.ARKANDIA_INTERNAL_URL || process.env.ARKANDIA_API_URL || '').trim();
+  return configured.replace(/\/api\/public\/v1\/?$/, '').replace(/\/+$/, '');
+}
+
+function onboardingSecret() {
+  if (process.env.ONBOARDING_SYNC_SECRET) return process.env.ONBOARDING_SYNC_SECRET.trim();
+  try {
+    const base = fs.readFileSync('/var/tmp/ernas-activity-bot.secret', 'utf8').trim();
+    return base ? crypto.createHmac('sha256', base).update('discord-onboarding-sync').digest('hex') : '';
+  } catch { return ''; }
+}
 
 function linkButton(label, url) {
   return new ActionRowBuilder().addComponents(
@@ -87,7 +103,7 @@ module.exports = {
 
   async handleComponent(interaction) {
     const customId = interaction.customId;
-    if (!['onboarding:sync', 'onboarding:progress'].includes(customId)) return false;
+    if (![CREATE_CHARACTER_CUSTOM_ID, 'onboarding:sync', 'onboarding:progress'].includes(customId)) return false;
 
     if (!interaction.guild) {
       await interaction.reply({
@@ -102,6 +118,69 @@ module.exports = {
     }
 
     await interaction.deferReply({ ephemeral: true });
+
+    if (customId === CREATE_CHARACTER_CUSTOM_ID) {
+      const base = appBaseUrl();
+      const secret = onboardingSecret();
+      if (!base || secret.length < 32) {
+        await interaction.editReply(privateEmbed({
+          title: 'Criação temporariamente indisponível',
+          description: 'Não foi possível preparar seu acesso ao site agora. Tente novamente em instantes.',
+          color: Colors.WARNING
+        }));
+        return true;
+      }
+
+      let handoffResponse;
+      try {
+        handoffResponse = await fetch(`${base}/api/internal/onboarding/handoff`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-onboarding-sync-secret': secret },
+          body: JSON.stringify({ discord_id: interaction.user.id }),
+        });
+      } catch (error) {
+        console.error('[ONBOARDING] handoff request failed:', error.message);
+        await interaction.editReply(privateEmbed({
+          title: 'Não foi possível preparar seu acesso',
+          description: 'O site demorou a responder. Tente novamente em alguns instantes; seu progresso não foi perdido.',
+          color: Colors.WARNING
+        }));
+        return true;
+      }
+
+      const handoffPayload = await handoffResponse.json().catch(() => null);
+      if (handoffResponse.ok && handoffPayload && typeof handoffPayload.url === 'string') {
+        await interaction.editReply({
+          ...privateEmbed({
+            title: 'Conta Discord identificada',
+            description: 'Preparamos um acesso temporário e seguro. Abra o site pelo botão abaixo para continuar a criação do personagem.',
+            color: Colors.SUCCESS
+          }),
+          components: [linkButton('Abrir criação de personagem', handoffPayload.url)]
+        });
+        return true;
+      }
+
+      if (handoffResponse.status === 404 && handoffPayload?.code === 'account_required') {
+        await interaction.editReply({
+          ...privateEmbed({
+            title: 'Primeiro acesso ao site',
+            description: 'Esta conta Discord ainda não possui cadastro no site. Abra o botão abaixo para fazer o primeiro login e continuar a criação do personagem.',
+            color: Colors.PRIMARY
+          }),
+          components: [linkButton('Criar personagem', SITE_URL)]
+        });
+        return true;
+      }
+
+      await interaction.editReply(privateEmbed({
+        title: 'Não foi possível abrir a criação',
+        description: 'Não conseguimos preparar seu acesso agora. Tente novamente em instantes.',
+        color: Colors.WARNING
+      }));
+      return true;
+    }
+
     const config = getGuildConfig(interaction.guild.id);
     const roles = onboardingRoleIds(config);
     const baseUrl = (process.env.ARKANDIA_API_URL || '').replace(/\/+$/, '');
