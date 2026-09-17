@@ -17,7 +17,6 @@ const {
 const fs = require('fs');
 const crypto = require('crypto');
 
-const SITE_URL = 'https://toe.ernas.com.br/criar-personagem';
 const CREATE_CHARACTER_CUSTOM_ID = 'onboarding:create-character';
 
 function appBaseUrl() {
@@ -31,6 +30,25 @@ function onboardingSecret() {
     const base = fs.readFileSync('/var/tmp/ernas-activity-bot.secret', 'utf8').trim();
     return base ? crypto.createHmac('sha256', base).update('discord-onboarding-sync').digest('hex') : '';
   } catch { return ''; }
+}
+
+async function requestCharacterHandoff(interaction) {
+  const base = appBaseUrl();
+  const secret = onboardingSecret();
+  if (!base || secret.length < 32) return null;
+
+  try {
+    const response = await fetch(`${base}/api/internal/onboarding/handoff`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-onboarding-sync-secret': secret },
+      body: JSON.stringify({ discord_id: interaction.user.id, guild_id: interaction.guild.id }),
+    });
+    const payload = await response.json().catch(() => null);
+    return response.ok && payload && typeof payload.url === 'string' ? payload.url : null;
+  } catch (error) {
+    console.error('[ONBOARDING] handoff request failed:', error.message);
+    return null;
+  }
 }
 
 function linkButton(label, url) {
@@ -120,62 +138,22 @@ module.exports = {
     await interaction.deferReply({ ephemeral: true });
 
     if (customId === CREATE_CHARACTER_CUSTOM_ID) {
-      const base = appBaseUrl();
-      const secret = onboardingSecret();
-      if (!base || secret.length < 32) {
-        await interaction.editReply(privateEmbed({
-          title: 'Criação temporariamente indisponível',
-          description: 'Não foi possível preparar seu acesso ao site agora. Tente novamente em instantes.',
-          color: Colors.WARNING
-        }));
-        return true;
-      }
-
-      let handoffResponse;
-      try {
-        handoffResponse = await fetch(`${base}/api/internal/onboarding/handoff`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json', 'x-onboarding-sync-secret': secret },
-          body: JSON.stringify({ discord_id: interaction.user.id }),
-        });
-      } catch (error) {
-        console.error('[ONBOARDING] handoff request failed:', error.message);
-        await interaction.editReply(privateEmbed({
-          title: 'Não foi possível preparar seu acesso',
-          description: 'O site demorou a responder. Tente novamente em alguns instantes; seu progresso não foi perdido.',
-          color: Colors.WARNING
-        }));
-        return true;
-      }
-
-      const handoffPayload = await handoffResponse.json().catch(() => null);
-      if (handoffResponse.ok && handoffPayload && typeof handoffPayload.url === 'string') {
+      const handoffUrl = await requestCharacterHandoff(interaction);
+      if (handoffUrl) {
         await interaction.editReply({
           ...privateEmbed({
             title: 'Conta Discord identificada',
             description: 'Preparamos um acesso temporário e seguro. Abra o site pelo botão abaixo para continuar a criação do personagem.',
             color: Colors.SUCCESS
           }),
-          components: [linkButton('Abrir criação de personagem', handoffPayload.url)]
-        });
-        return true;
-      }
-
-      if (handoffResponse.status === 404 && handoffPayload?.code === 'account_required') {
-        await interaction.editReply({
-          ...privateEmbed({
-            title: 'Primeiro acesso ao site',
-            description: 'Esta conta Discord ainda não possui cadastro no site. Abra o botão abaixo para fazer o primeiro login e continuar a criação do personagem.',
-            color: Colors.PRIMARY
-          }),
-          components: [linkButton('Criar personagem', SITE_URL)]
+          components: [linkButton('Abrir criação de personagem', handoffUrl)]
         });
         return true;
       }
 
       await interaction.editReply(privateEmbed({
-        title: 'Não foi possível abrir a criação',
-        description: 'Não conseguimos preparar seu acesso agora. Tente novamente em instantes.',
+        title: 'Criação temporariamente indisponível',
+        description: 'Não conseguimos preparar seu acesso seguro agora. Tente novamente em instantes.',
         color: Colors.WARNING
       }));
       return true;
@@ -267,20 +245,23 @@ module.exports = {
           color: synced ? Colors.SUCCESS : Colors.PRIMARY
         })]
       };
-      if (!synced && !hasCharacter) progressPayload.components = [linkButton('Criar personagem', SITE_URL)];
-      else if (!synced && hasCharacter) progressPayload.components = [syncButton()];
+      if (!synced && !hasCharacter) {
+        const handoffUrl = await requestCharacterHandoff(interaction);
+        if (handoffUrl) progressPayload.components = [linkButton('Criar personagem', handoffUrl)];
+      } else if (!synced && hasCharacter) progressPayload.components = [syncButton()];
       await interaction.editReply(progressPayload);
       return true;
     }
 
     if (response.status === 404) {
+      const handoffUrl = await requestCharacterHandoff(interaction);
       await interaction.editReply({
         ...privateEmbed({
           title: 'Personagem ainda não vinculado',
           description: 'Não encontramos um personagem ativo vinculado a este Discord. Crie seu personagem no site; ao concluir, a liberação será automática. Se necessário, volte aqui para verificar novamente.',
           color: Colors.PRIMARY
         }),
-        components: [linkButton('Criar personagem', SITE_URL)]
+        ...(handoffUrl ? { components: [linkButton('Criar personagem', handoffUrl)] } : {})
       });
       return true;
     }

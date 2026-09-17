@@ -11,20 +11,29 @@ require('dotenv').config({ quiet: true });
 
 const { Client, GatewayIntentBits } = require('discord.js');
 
-const CHANNELS = [
+const WELCOME_CATEGORY_ID = '1547725356339957811';
+const FALLBACK_CHANNELS = [
   '1547724809482272788',
   '1547724811139031060',
 ];
 const CREATE_CHARACTER_CUSTOM_ID = 'onboarding:create-character';
-const SITE_URL = 'https://toe.ernas.com.br/criar-personagem';
 const dryRun = process.argv.includes('--dry-run');
+
+function isCharacterCreationUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.hostname === 'toe.ernas.com.br' && url.pathname === '/criar-personagem';
+  } catch {
+    return false;
+  }
+}
 
 function replaceButtons(value, state) {
   if (Array.isArray(value)) return value.map((item) => replaceButtons(item, state));
   if (!value || typeof value !== 'object') return value;
 
   const next = { ...value };
-  if (next.type === 2 && typeof next.url === 'string' && next.url === SITE_URL) {
+  if (next.type === 2 && typeof next.url === 'string' && isCharacterCreationUrl(next.url)) {
     delete next.url;
     next.custom_id = CREATE_CHARACTER_CUSTOM_ID;
     next.style = 1;
@@ -40,23 +49,23 @@ async function main() {
   const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] });
   await client.login(process.env.DISCORD_TOKEN);
   try {
-    for (const channelId of CHANNELS) {
-      const channel = await client.channels.fetch(channelId);
-      const messages = await channel.messages.fetch({ limit: 20 });
-      const target = messages.find((message) => message.components?.some((component) => JSON.stringify(component.toJSON()).includes(SITE_URL)));
-      if (!target) {
-        console.log(`[onboarding] ${channelId}: painel com link não encontrado.`);
-        continue;
-      }
+    const category = await client.channels.fetch(WELCOME_CATEGORY_ID).catch(() => null);
+    const channels = category?.children?.cache
+      ? [...category.children.cache.values()].filter((channel) => channel.isTextBased?.() && channel.messages)
+      : (await Promise.all(FALLBACK_CHANNELS.map((id) => client.channels.fetch(id).catch(() => null)))).filter(Boolean);
 
-      const state = { changed: 0 };
-      const components = target.components.map((component) => replaceButtons(component.toJSON(), state));
-      if (!state.changed) {
-        console.log(`[onboarding] ${channelId}: nenhum botão elegível.`);
-        continue;
+    if (!channels.length) throw new Error('Nenhum canal encontrado na categoria Bem-vindo.');
+
+    for (const channel of channels) {
+      const messages = await channel.messages.fetch({ limit: 100 });
+      for (const target of messages.values()) {
+        if (!target.components?.length) continue;
+        const state = { changed: 0 };
+        const components = target.components.map((component) => replaceButtons(component.toJSON(), state));
+        if (!state.changed) continue;
+        if (!dryRun) await target.edit({ components });
+        console.log(`[onboarding] ${channel.id}: ${dryRun ? 'seria atualizado' : 'atualizado'} (${target.id}, ${state.changed} botão(ões)).`);
       }
-      if (!dryRun) await target.edit({ components });
-      console.log(`[onboarding] ${channelId}: ${dryRun ? 'seria atualizado' : 'atualizado'} (${target.id}, ${state.changed} botão(ões)).`);
     }
   } finally {
     client.destroy();
