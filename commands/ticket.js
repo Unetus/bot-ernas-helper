@@ -18,6 +18,7 @@ const CATEGORY_LABELS = {
   denuncias: 'Denúncias',
   duvidas: 'Dúvidas',
   'token-aprimorado': 'Token Aprimorado',
+  'token-gratuito': 'Token Gratuito (padrão)',
   outros: 'Outros'
 };
 
@@ -312,6 +313,7 @@ module.exports = {
       await channel.send({ embeds: [welcomeEmbed] });
 
       await appendLog(interaction.guild, {
+        category: 'tickets',
         title: 'Ticket aberto',
         description: `${interaction.user.tag} abriu ${channel}\nMotivo: ${reason}`,
         color: Colors.PRIMARY
@@ -360,6 +362,7 @@ module.exports = {
       });
 
       await appendLog(interaction.guild, {
+        category: 'tickets',
         title: 'Ticket excluído',
         description: [
           `Canal: ${interaction.channel.name}`,
@@ -457,6 +460,7 @@ module.exports = {
       });
 
       await appendLog(interaction.guild, {
+        category: 'tickets',
         title: 'Ticket fechado',
         description: `${interaction.channel.name} fechado por ${interaction.user.tag}`,
         color: Colors.DANGER

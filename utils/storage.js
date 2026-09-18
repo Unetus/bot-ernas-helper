@@ -7,6 +7,11 @@ const tmpPath = `${dbPath}.tmp`;
 
 const defaultGuildConfig = {
   logChannelId: null,
+  memberLogChannelId: null,
+  moderationLogChannelId: null,
+  ticketLogChannelId: null,
+  boostLogChannelId: null,
+  botLogChannelId: null,
   ticketCategoryId: null,
   supportRoleId: null,
   transcriptChannelId: null,

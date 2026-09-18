@@ -138,6 +138,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 // ---------------------------------------------------------------------------
 client.on(Events.GuildMemberAdd, async (member) => {
   await appendLog(member.guild, {
+    category: 'members',
     title: 'Membro entrou',
     color: Colors.SUCCESS,
     fields: [
@@ -155,10 +156,29 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
   } catch (error) {
     console.error('[ONBOARDING] Falha ao reconciliar cargos:', error.message);
   }
+
+  // O Discord expõe apenas o início/fim do boost por membro. O evento é
+  // registrado para auditoria, enquanto créditos continuam protegidos pelo
+  // ledger idempotente do site.
+  const before = oldMember.premiumSince?.getTime?.() || null;
+  const after = newMember.premiumSince?.getTime?.() || null;
+  if (before === after) return;
+
+  await appendLog(newMember.guild, {
+    category: 'boosts',
+    title: after ? 'Boost ativado' : 'Boost encerrado',
+    color: after ? Colors.SUCCESS : Colors.WARNING,
+    fields: [
+      { name: 'Usuário', value: `${newMember.user.tag}`, inline: true },
+      { name: 'ID', value: newMember.id, inline: true },
+      { name: after ? 'Início' : 'Encerrado em', value: after ? `<t:${Math.floor(after / 1000)}:F>` : `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true }
+    ]
+  });
 });
 
 client.on(Events.GuildMemberRemove, async (member) => {
   await appendLog(member.guild, {
+    category: 'members',
     title: 'Membro saiu',
     color: Colors.WARNING,
     fields: [
@@ -175,6 +195,7 @@ client.on(Events.MessageDelete, async (message) => {
   if (!message.guild || message.author?.bot) return;
 
   await appendLog(message.guild, {
+    category: 'moderation',
     title: 'Mensagem apagada',
     color: Colors.DANGER,
     fields: [
@@ -190,6 +211,7 @@ client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
   if (oldMessage.content === newMessage.content) return;
 
   await appendLog(newMessage.guild, {
+    category: 'moderation',
     title: 'Mensagem editada',
     color: Colors.WARNING,
     fields: [

@@ -106,9 +106,30 @@ module.exports = {
 
       const fields = [
         {
-          name: 'Logs',
-          value: config.logChannelId
-            ? `${check} <#${config.logChannelId}>`
+          name: 'Logs de membros',
+          value: config.memberLogChannelId
+            ? `${check} <#${config.memberLogChannelId}>`
+            : `${cross} Não configurado`,
+          inline: true
+        },
+        {
+          name: 'Logs de moderação',
+          value: config.moderationLogChannelId
+            ? `${check} <#${config.moderationLogChannelId}>`
+            : `${cross} Não configurado`,
+          inline: true
+        },
+        {
+          name: 'Logs de tickets',
+          value: config.ticketLogChannelId
+            ? `${check} <#${config.ticketLogChannelId}>`
+            : `${cross} Não configurado`,
+          inline: true
+        },
+        {
+          name: 'Logs de boosts',
+          value: config.boostLogChannelId
+            ? `${check} <#${config.boostLogChannelId}>`
             : `${cross} Não configurado`,
           inline: true
         },
